@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAMC — 식품유형 분류</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Apple SD Gothic Neo', '맑은 고딕', sans-serif;
+      background: #f4f6fb;
+      color: #222;
+      min-height: 100vh;
+    }
+
+    /* ── 헤더 ── */
+    .top-bar {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f5;
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .logo { font-size: 17px; font-weight: 700; color: #1a2340; }
+    .tab-nav { display: flex; gap: 4px; }
+    .tab-btn {
+      padding: 6px 20px;
+      border: none;
+      background: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #7c8db5;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn.active { background: #eef2fb; color: #3d5a99; font-weight: 700; }
+    .btn-reset-all {
+      padding: 6px 14px;
+      background: #fff0f0;
+      color: #c0392b;
+      border: 1px solid #f5b7b1;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-reset-all:hover { background: #fde8e8; }
+
+    /* ── 레이아웃 ── */
+    .page { display: none; padding: 28px 20px; max-width: 760px; margin: 0 auto; }
+    .page.active { display: block; }
+
+    /* ── 카드 ── */
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .step-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a2340;
+    }
+    .step-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #7c8db5;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    /* ── 버튼 ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+    .btn-primary   { background: #3d5a99; color: #fff; }
+    .btn-primary:hover { background: #2e4480; }
+    .btn-primary:disabled { background: #b0bcd6; cursor: not-allowed; }
+    .btn-outline   { background: #fff; color: #3d5a99; border: 2px solid #3d5a99; }
+    .btn-outline:hover { background: #eef2fb; }
+    .btn-ghost     { background: #f4f6fb; color: #5a6e9e; border: 1px solid #dde4f0; }
+    .btn-ghost:hover { background: #e8ecf5; }
+    .btn-danger    { background: #fff0f0; color: #c0392b; border: 1px solid #f5b7b1; }
+    .btn-danger:hover { background: #fde8e8; }
+    .btn-sm        { padding: 5px 11px; font-size: 12px; }
+    .btn-full      { width: 100%; justify-content: center; margin-top: 14px; }
+
+    /* ── 드롭존 ── */
+    .drop-zone {
+      border: 2px dashed #c5d0e8;
+      border-radius: 12px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: #fafbff;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: #3d5a99;
+      background: #eef2fb;
+    }
+    .drop-zone.locked { pointer-events: none; opacity: 0.5; }
+    .drop-icon { font-size: 32px; margin-bottom: 10px; }
+    .drop-main { font-size: 15px; font-weight: 600; color: #1a2340; margin-bottom: 6px; }
+    .drop-sub  { font-size: 13px; color: #7c8db5; }
+    .drop-limit { font-size: 12px; color: #a0aec0; margin-top: 8px; }
+
+    /* ── 파일 목록 ── */
+    .file-list { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: #f8faff;
+      border: 1px solid #e2e8f5;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+    .file-name  { flex: 1; color: #1a2340; font-weight: 500; word-break: break-all; }
+    .file-size  { color: #a0aec0; font-size: 12px; white-space: nowrap; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge-blue   { background: #dde8ff; color: #2a45a0; }
+    .badge-green  { background: #e8f5e9; color: #2e7d32; }
+    .badge-orange { background: #fff3e0; color: #e65100; border: 1px solid #ffccbc; }
+    .badge-red    { background: #fde8e8; color: #c0392b; }
+    .badge-gray   { background: #f0f0f0; color: #666; }
+    .hwp-warn {
+      font-size: 12px;
+      color: #e65100;
+      background: #fff3e0;
+      border-radius: 6px;
+      padding: 4px 8px;
+      margin-top: 4px;
+    }
+
+    /* ── 알림 박스 ── */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-top: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .alert-warn   { background: #fff8e1; color: #795548; border: 1px solid #ffe082; }
+    .alert-error  { background: #fde8e8; color: #c0392b; border: 1px solid #f5b7b1; }
+    .alert-info   { background: #eef2fb; color: #3d5a99; border: 1px solid #c5d0e8; }
+    .alert-success{ background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+
+    /* ── 제품명 결과 ── */
+    .product-result {
+      background: #f8faff;
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+    .product-field {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 8px 0;
+      font-size: 14px;
+    }
+    .f-label { color: #7c8db5; }
+    .f-value { font-weight: 600; color: #1a2340; }
+    .tag {
+      display: inline-block;
+      background: #eef2fb;
+      color: #3d5a99;
+      border-radius: 5px;
+      padding: 2px 8px;
+      font-size: 12px;
+      margin: 2px 2px 0 0;
+    }
+    .editable-input {
+      border: 1px solid #c5d0e8;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a2340;
+      background: #fff;
+      width: 100%;
+    }
+
+    /* ── 로딩 ── */
+    .loading-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 0;
+      border-bottom: 1px solid #f0f3fa;
+      font-size: 14px;
+      color: #7c8db5;
+    }
+    .loading-row:last-child { border-bottom: none; }
+    .loading-row.done   { color: #2e7d32; }
+    .loading-row.active { color: #3d5a99; font-weight: 600; }
+    .spin {
+      width: 18px; height: 18px;
+      border: 2px solid #dde4f0;
+      border-top-color: #3d5a99;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── 법령 결과 카드 ── */
+    .law-card {
+      border: 1px solid #e2e8f5;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+    .law-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .law-name { font-size: 14px; font-weight: 700; color: #1a2340; }
+    .score-bar {
+      height: 5px;
+      background: #e2e8f5;
+      border-radius: 3px;
+      margin: 6px 0;
+      overflow: hidden;
+    }
+    .score-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+    .score-good { background: #3d5a99; }
+    .score-low  { background: #e67e22; }
+    .law-summary { font-size: 13px; color: #1a2340; font-weight: 500; margin-bottom: 6px; }
+    .law-reason  { font-size: 13px; color: #5a6e9e; line-height: 1.6; margin-bottom: 8px; }
+    .law-meta    { font-size: 11px; color: #a0aec0; }
+
+    /* ── 공정 단계 ── */
+    .process-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f3fa;
+      font-size: 14px;
+    }
+    .process-item:last-child { border-bottom: none; }
+    .process-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; margin-top: 1px; }
+    .process-step-name { font-weight: 600; color: #1a2340; margin-bottom: 3px; }
+    .process-content   { font-size: 13px; color: #5a6e9e; }
+    .process-law       { font-size: 12px; color: #7c8db5; margin-top: 4px; }
+    .s3-file-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f0f3fa;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #3a4a6e;
+      font-weight: 500;
+    }
+    .process-flow-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px;
+      background: #f8f9ff;
+      border-radius: 8px;
+    }
+    .flow-step {
+      background: #fff;
+      border: 1px solid #c8d4f0;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a2340;
+    }
+    .flow-arrow { color: #7c8db5; font-size: 15px; font-weight: 700; }
+
+    /* ── Step3 결론 박스 ── */
+    .s3-conclusion-box {
+      background: linear-gradient(135deg, #eef6ff 0%, #f0f8ff 100%);
+      border: 1.5px solid #90caf9;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+    .s3-conclusion-label { font-size: 11px; font-weight: 700; color: #1565c0; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 4px; }
+    .s3-conclusion-value { font-size: 20px; font-weight: 700; color: #1a2340; }
+
+    /* ── Step3 분석 근거 기반 박스 ── */
+    .s3-basis-box {
+      background: #f8f9ff;
+      border: 1px solid #e2e8f5;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+    .s3-basis-title { font-size: 12px; font-weight: 700; color: #3a4a6e; margin-bottom: 6px; }
+    .s3-basis-list { list-style: none; padding: 0; margin: 0; }
+    .s3-basis-list li { font-size: 13px; color: #5a6e9e; padding: 2px 0; }
+    .s3-basis-list li strong { color: #1a2340; }
+
+    /* ── 충돌 선택 ── */
+    .conflict-box {
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+    .conflict-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 12px 0;
+    }
+    .conflict-option {
+      padding: 12px;
+      border: 2px solid #e2e8f5;
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a2340;
+      transition: all 0.15s;
+    }
+    .conflict-option:hover    { border-color: #3d5a99; background: #eef2fb; }
+    .conflict-option.selected { border-color: #3d5a99; background: #eef2fb; color: #3d5a99; }
+
+    /* ── 최종 결과 ── */
+    .verdict-box {
+      background: #eef2fb;
+      border-left: 4px solid #3d5a99;
+      border-radius: 0 12px 12px 0;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+    }
+    .verdict-type  { font-size: 24px; font-weight: 700; color: #1a2340; margin-bottom: 4px; }
+    .verdict-sub   { font-size: 13px; color: #5a6e9e; }
+    .doc-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f3fa;
+      font-size: 14px;
+    }
+    .doc-item:last-child { border-bottom: none; }
+    .doc-name { font-weight: 600; color: #1a2340; }
+    .doc-desc { font-size: 12px; color: #7c8db5; margin-top: 3px; }
+
+    /* ── 확인 배지 ── */
+    .confirmed-badge {
+      text-align: center;
+      padding: 16px;
+      background: #e8f5e9;
+      border-radius: 10px;
+      color: #2e7d32;
+      font-weight: 600;
+      font-size: 15px;
+      margin-top: 14px;
+    }
+
+    /* ── 수동 입력 폼 ── */
+    .manual-form { margin-top: 14px; }
+    .manual-form input, .manual-form select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #c5d0e8;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #1a2340;
+      margin-bottom: 10px;
+    }
+
+    /* ── 모달 ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px;
+      max-width: 560px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-title { font-size: 15px; font-weight: 700; color: #1a2340; margin-bottom: 12px; }
+    .modal-body  { font-size: 13px; color: #444; line-height: 1.8; white-space: pre-wrap; }
+    .modal-close {
+      display: block;
+      margin-top: 16px;
+      width: 100%;
+      padding: 10px;
+      background: #f4f6fb;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #5a6e9e;
+    }
+
+    /* ── 유틸 ── */
+    .hidden  { display: none !important; }
+    .mt-8    { margin-top: 8px; }
+    .mt-12   { margin-top: 12px; }
+    .flex    { display: flex; }
+    .gap-8   { gap: 8px; }
+    .flex-1  { flex: 1; }
+    .section-divider {
+      height: 1px;
+      background: #f0f3fa;
+      margin: 16px 0;
+    }
+    .query-pill {
+      display: inline-block;
+      background: #eef2fb;
+      color: #3d5a99;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 12px;
+      margin-bottom: 14px;
+      word-break: break-all;
+    }
+    .coverage-note {
+      font-size: 12px;
+      color: #a0aec0;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── 상단 바 ── -->
+<div class="top-bar">
+  <span class="logo">SAMC</span>
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('food-type')">식품유형</button>
+    <button class="tab-btn" onclick="switchTab('product-info')">제품정보</button>
+  </div>
+  <button class="btn-reset-all" onclick="App.resetAll()">전체 초기화</button>
+</div>
+
+<!-- ═══════════════════════════════════
+     TAB 1 — 식품유형
+════════════════════════════════════ -->
+<div id="page-food-type" class="page active">
+
+  <!-- ── STEP 1: 파일 업로드 & 제품명 추출 ── -->
+  <div class="card" id="card-step1">
+    <div class="card-header">
+      <div>
+        <div class="step-label">STEP 1</div>
+        <div class="step-title">파일 업로드 &amp; 제품명 추출</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="App.resetStep(1)">초기화</button>
+    </div>
+
+    <!-- 드롭존 -->
+    <div class="drop-zone" id="dropZone"
+         onclick="document.getElementById('fileInput').click()"
+         ondragover="App.onDragOver(event)"
+         ondragleave="App.onDragLeave(event)"
+         ondrop="App.onDrop(event)">
+      <div class="drop-icon">📂</div>
+      <div class="drop-main">파일을 드래그하거나 클릭하여 업로드</div>
+      <div class="drop-sub">MSDS 또는 제조공정도 (둘 다 선택사항, 1개 이상 필요)</div>
+      <div class="drop-limit">최대 20MB / PDF · JPG · PNG 지원 · HWP 부분 지원</div>
+    </div>
+    <input type="file" id="fileInput" class="hidden" multiple
+           accept=".pdf,.jpg,.jpeg,.png,.hwp"
+           onchange="App.onFileSelect(event)" />
+
+    <!-- 파일 목록 -->
+    <div class="file-list" id="fileList"></div>
+
+    <!-- 단일 파일 경고 -->
+    <div class="alert alert-warn hidden" id="singleFileWarn">
+      ⚠ 1개 파일 기반 분석입니다. 추가 파일 업로드 시 분석 정확도가 높아집니다.
+    </div>
+
+    <!-- 분석 중 잠금 안내 -->
+    <div class="alert alert-info hidden" id="analyzingLock">
+      🔒 분석 중에는 파일을 추가할 수 없습니다.
+    </div>
+
+    <!-- 분석 시작 버튼 -->
+    <button class="btn btn-primary btn-full" id="btnAnalyze"
+            disabled onclick="App.startAnalysis()">
+      분석 시작
+    </button>
+
+    <!-- 로딩 -->
+    <div class="hidden" id="step1Loading">
+      <div class="section-divider"></div>
+      <div class="loading-row active" id="s1r1">
+        <div class="spin"></div> AI가 파일에서 제품 정보 추출 중...
+      </div>
+    </div>
+
+    <!-- 결과 -->
+    <div class="hidden" id="step1Result">
+      <div class="section-divider"></div>
+      <div class="product-result">
+        <div class="step-label" style="margin-bottom:10px">추출된 제품 정보</div>
+        <div class="product-field">
+          <span class="f-label">제품명</span>
+          <span><input class="editable-input" id="rProductName" /></span>
+          <span class="f-label">제조사</span>
+          <span class="f-value" id="rManufacturer"></span>
+          <span class="f-label">원산지</span>
+          <span class="f-value" id="rOrigin"></span>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="App.proceedToStep2()">
+        다음 단계 — 법령 검색 →
+      </button>
+    </div>
+
+    <!-- 정보 없음 fallback -->
+    <div class="hidden" id="step1Fallback">
+      <div class="alert alert-warn mt-12">
+        파일에서 정보를 찾지 못했습니다. 직접 입력하거나, 입력 없이 다음 단계로 진행할 수 있습니다. (정확도가 낮아질 수 있습니다)
+      </div>
+      <div class="manual-form">
+        <input type="text" id="manualProductName" placeholder="제품명 (선택사항)" />
+        <input type="text" id="manualOrigin" placeholder="원산지 (선택사항)" />
+        <button class="btn btn-primary btn-full" onclick="App.manualProceed()">
+          다음 단계 →
+        </button>
+      </div>
+    </div>
+
+    <!-- API 오류 -->
+    <div class="hidden" id="step1Error">
+      <div class="alert alert-error mt-12" id="step1ErrorMsg"></div>
+      <div class="flex gap-8 mt-8">
+        <button class="btn btn-ghost btn-full" onclick="App.startAnalysis()">재시도</button>
+        <button class="btn btn-primary btn-full" onclick="App.skipStep1()">정보 없이 진행 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 2: Pinecone 법령 검색 ── -->
+  <div class="card hidden" id="card-step2">
+    <div class="card-header">
+      <div>
+        <div class="step-label">STEP 2</div>
+        <div class="step-title">법령 검색 (Pinecone)</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="App.resetStep(2)">초기화</button>
+    </div>
+
+    <!-- 로딩 -->
+    <div id="step2Loading">
+      <div class="loading-row active" id="s2r1"><div class="spin"></div> 쿼리 변환 중...</div>
+      <div class="loading-row" id="s2r2"><span>⏳</span> 카테고리 필터 적용 중...</div>
+      <div class="loading-row" id="s2r3"><span>⏳</span> Pinecone 벡터 검색 중...</div>
+      <div class="loading-row" id="s2r4"><span>⏳</span> 중복 제거 및 결과 정리...</div>
+    </div>
+
+    <!-- 결과 -->
+    <div class="hidden" id="step2Result">
+      <div class="step-label" style="margin-bottom:6px">변환된 검색 쿼리</div>
+      <div class="query-pill" id="s2Query"></div>
+      <div class="coverage-note">
+        ⚡ 현재 지원 범위: 주류 · 일반가공식품 (벡터 35개 기준)
+      </div>
+      <div id="s2ResultList"></div>
+      <div class="law-meta mt-8" id="s2Meta"></div>
+      <button class="btn btn-primary btn-full mt-12" onclick="App.proceedToStep3()">
+        다음 단계 — 공정도 분석 →
+      </button>
+    </div>
+
+    <!-- 결과 없음 fallback -->
+    <div class="hidden" id="step2Fallback">
+      <div class="alert alert-warn">
+        관련 법령을 찾지 못했습니다. 식품유형을 직접 입력해 주세요.
+      </div>
+      <div class="manual-form mt-8">
+        <input type="text" id="manualFoodType" placeholder="식품유형 직접 입력 (예: 일반증류주)" />
+        <button class="btn btn-primary btn-full" onclick="App.manualFoodType()">
+          입력 완료 — 다음 단계 →
+        </button>
+      </div>
+    </div>
+
+    <!-- API 오류 -->
+    <div class="hidden" id="step2Error">
+      <div class="alert alert-error" id="step2ErrorMsg"></div>
+      <button class="btn btn-ghost btn-full mt-8" onclick="App.runStep2()">재시도</button>
+    </div>
+  </div>
+
+  <!-- ── STEP 3: 제조공정도 분석 ── -->
+  <div class="card hidden" id="card-step3">
+    <div class="card-header">
+      <div>
+        <div class="step-label">STEP 3</div>
+        <div class="step-title">제조공정도 분석</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="App.resetStep(3)">초기화</button>
+    </div>
+
+    <!-- 로딩 -->
+    <div id="step3Loading">
+      <div class="loading-row active" id="s3r1"><div class="spin"></div> 파일 형식 및 언어 감지 중...</div>
+      <div class="loading-row" id="s3r2"><span>⏳</span> 공정 단계 분석 중...</div>
+      <div class="loading-row" id="s3r3"><span>⏳</span> 법령 기준 대조 중...</div>
+    </div>
+
+    <!-- 결과 -->
+    <div class="hidden" id="step3Result">
+      <!-- 번역 알림 -->
+      <div class="alert alert-info hidden" id="s3TranslateNote"></div>
+      <!-- 이미지 품질 경고 -->
+      <div class="alert alert-warn hidden" id="s3QualityWarn"></div>
+
+      <!-- 분석 파일명 -->
+      <div class="step-label mt-12" style="margin-bottom:6px">분석 파일</div>
+      <div id="s3FileInfo"></div>
+
+      <!-- 공정 흐름 -->
+      <div class="step-label mt-12" style="margin-bottom:6px">판독된 공정 순서</div>
+      <div id="s3ProcessFlow"></div>
+
+      <button class="btn btn-primary btn-full mt-12" id="btnProceedStep4"
+              onclick="App.proceedToStep4()">
+        다음 단계 — 최종 결과 확정 →
+      </button>
+    </div>
+
+    <!-- API 오류 -->
+    <div class="hidden" id="step3Error">
+      <div class="alert alert-error" id="step3ErrorMsg"></div>
+      <button class="btn btn-ghost btn-full mt-8" onclick="App.runStep3()">재시도</button>
+    </div>
+  </div>
+
+  <!-- ── STEP 4: 최종 결과 ── -->
+  <div class="card hidden" id="card-step4">
+    <div class="card-header">
+      <div>
+        <div class="step-label">STEP 4</div>
+        <div class="step-title">최종 결과 확정</div>
+      </div>
+    </div>
+
+    <div id="step4Result">
+      <div class="verdict-box">
+        <div class="verdict-type" id="s4FinalType"></div>
+        <div class="verdict-sub" id="s4Sub"></div>
+      </div>
+
+      <div class="step-label" style="margin-bottom:10px">필요 서류</div>
+      <div id="s4DocList"></div>
+
+      <div class="flex gap-8 mt-12" id="s4BtnGroup">
+        <button class="btn btn-primary flex-1" onclick="App.confirmFinal()">✓ 확인</button>
+        <button class="btn btn-outline flex-1" onclick="App.editFinal()">✎ 유형 수정</button>
+      </div>
+    </div>
+
+    <div class="confirmed-badge hidden" id="confirmedBadge">
+      ✅ 식품유형이 확정되었습니다. 다음 단계로 이동합니다.
+    </div>
+  </div>
+
+</div><!-- /page-food-type -->
+
+<!-- ═══════════════════════════════════
+     TAB 2 — 제품정보
+════════════════════════════════════ -->
+<div id="page-product-info" class="page">
+  <div class="card" style="text-align:center;padding:60px 24px">
+    <div style="font-size:40px;margin-bottom:16px">🛠</div>
+    <div style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:8px">제품정보</div>
+    <div style="font-size:14px;color:#7c8db5">추후 패치 예정</div>
+  </div>
+</div>
+
+<!-- ── 원문 보기 모달 ── -->
+<div class="modal-overlay" id="modalOverlay" onclick="App.closeModal(event)">
+  <div class="modal-box">
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-body"  id="modalBody"></div>
+    <button class="modal-close" onclick="App.closeModal()">닫기</button>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════
+   App  —  전체 상태 & 로직
+══════════════════════════════════════════ */
+const App = (() => {
+
+  /* ── 상태 ── */
+  const S = {
+    files:       [],       // { id, name, size, isHWP, detection, userType }
+    isAnalyzing: false,
+    s1: null,              // step1 결과
+    s2: null,              // step2 결과
+    s3: null,              // step3 결과
+    selectedConflict: null,
+    confirmed: false,
+  };
+
+  /* ── 유틸 ── */
+  const $  = id => document.getElementById(id);
+  const show = (id, display='block') => { const el=$(id); if(el) el.classList.remove('hidden'); if(display!=='block') el.style.display=display; };
+  const hide = id => { const el=$(id); if(el) el.classList.add('hidden'); };
+  const fmt  = n => (n / 1024 / 1024).toFixed(1) + ' MB';
+  const uid  = () => Math.random().toString(36).slice(2, 8);
+
+  /* ── API 호출 (30초 타임아웃) ── */
+  async function api(url, body) {
+    const ctrl = new AbortController();
+    const tid   = setTimeout(() => ctrl.abort(), 30000);
+    try {
+      const res = await fetch(url, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+        signal:  ctrl.signal,
+      });
+      clearTimeout(tid);
+      if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
+      return await res.json();
+    } catch (e) {
+      clearTimeout(tid);
+      if (e.name === 'AbortError') throw new Error('요청 시간이 초과되었습니다. 다시 시도해 주세요.');
+      throw e;
+    }
+  }
+
+  /* ── 세션 저장 / 복원 ── */
+  function save() {
+    try { localStorage.setItem('samc_files', JSON.stringify(S.files.map(f => ({ id:f.id, name:f.name, size:f.size, isHWP:f.isHWP, detection:f.detection, userType:f.userType })))); } catch {}
+  }
+  function load() {
+    try {
+      const d = localStorage.getItem('samc_files');
+      if (d) {
+        S.files = JSON.parse(d);
+        renderFiles();
+        updateAnalyzeBtn();
+        if (S.files.length === 1) show('singleFileWarn');
+      }
+    } catch {}
+  }
+
+  /* ════════════════════
+     파일 업로드 처리
+  ════════════════════ */
+  function onDragOver(e) {
+    e.preventDefault();
+    if (!S.isAnalyzing) $('dropZone').classList.add('drag-over');
+  }
+  function onDragLeave() { $('dropZone').classList.remove('drag-over'); }
+  function onDrop(e) {
+    e.preventDefault();
+    $('dropZone').classList.remove('drag-over');
+    if (S.isAnalyzing) return;
+    processFiles([...e.dataTransfer.files]);
+  }
+  function onFileSelect(e) {
+    if (S.isAnalyzing) return;
+    processFiles([...e.target.files]);
+    e.target.value = '';
+  }
+
+  async function processFiles(list) {
+    for (const file of list) {
+      await addFile(file);
+    }
+    updateAnalyzeBtn();
+    save();
+  }
+
+  async function addFile(file) {
+    // 크기 체크 (20MB)
+    if (file.size > 20 * 1024 * 1024) {
+      alert(`"${file.name}" 파일이 20MB를 초과합니다. 더 작은 파일을 업로드해 주세요.`);
+      return;
+    }
+    // 지원 확장자
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['pdf','jpg','jpeg','png','hwp'].includes(ext)) {
+      alert(`"${file.name}" — 지원하지 않는 형식입니다. (PDF · JPG · PNG · HWP)`);
+      return;
+    }
+    // 중복 체크
+    if (S.files.some(f => f.name === file.name)) {
+      alert(`"${file.name}" 파일이 이미 추가되어 있습니다.`);
+      return;
+    }
+
+    const id  = uid();
+    const row = { id, name: file.name, size: file.size, isHWP: ext==='hwp', detection: null, userType: null, loading: true, analyzed: null, _file: file };
+    S.files.push(row);
+    renderFiles();
+
+    // 파일 업로드 + AI 분석 동시 처리 (단일 요청)
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), 60000); // 분석 포함 60초
+      const res  = await fetch('/api/upload-and-analyze', { method: 'POST', body: form, signal: ctrl.signal });
+      clearTimeout(tid);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      row.name      = data.filename;
+      row.detection = data.detection;
+      row.loading   = false;
+      row.analyzed  = data; // 분석 결과 저장 (fallback 포함)
+    } catch {
+      row.detection = { type: 'MSDS', confidence: 75 };
+      row.loading   = false;
+      row.analyzed  = null;
+    }
+
+    renderFiles();
+    // 단일 파일 경고
+    if (S.files.length === 1) show('singleFileWarn'); else hide('singleFileWarn');
+  }
+
+  function renderFiles() {
+    const list = $('fileList');
+    list.innerHTML = '';
+    S.files.forEach(f => {
+      const conf = f.detection?.confidence ?? 0;
+      const type = f.userType || f.detection?.type || '판별 중';
+      const isLow = conf < 75;
+
+      let badgeHtml = '';
+      if (f.loading) {
+        badgeHtml = '<span class="badge badge-gray">판별 중…</span>';
+      } else {
+        const bc = isLow ? 'badge-orange' : 'badge-blue';
+        badgeHtml = `<span class="badge ${bc}">${type} ${conf}%</span>`;
+        if (isLow) badgeHtml += `<button class="btn btn-ghost btn-sm" onclick="App.editFileType('${f.id}')">수정</button>`;
+      }
+
+      const hwpWarn = f.isHWP ? `<div class="hwp-warn">HWP 파일 — 일부 내용만 판독될 수 있습니다.</div>` : '';
+
+      list.insertAdjacentHTML('beforeend', `
+        <div class="file-item" id="fi-${f.id}">
+          <div style="flex:1">
+            <div class="file-name">📄 ${f.name}</div>
+            ${hwpWarn}
+            <div class="flex gap-8 mt-8" style="flex-wrap:wrap">${badgeHtml}</div>
+          </div>
+          <span class="file-size">${fmt(f.size)}</span>
+          <button class="btn btn-danger btn-sm" onclick="App.removeFile('${f.id}')">삭제</button>
+        </div>
+      `);
+    });
+  }
+
+  function removeFile(id) {
+    if (S.isAnalyzing) return;
+    S.files = S.files.filter(f => f.id !== id);
+    renderFiles();
+    updateAnalyzeBtn();
+    if (S.files.length === 1) show('singleFileWarn'); else hide('singleFileWarn');
+    save();
+  }
+
+  function editFileType(id) {
+    const f = S.files.find(x => x.id === id);
+    if (!f) return;
+    const opts = ['MSDS', '제조공정도'];
+    const choice = prompt(`파일 유형을 선택하세요:\n1. MSDS\n2. 제조공정도\n현재: ${f.userType || f.detection?.type}`);
+    if (choice === '1' || choice?.toLowerCase().includes('msds'))     f.userType = 'MSDS';
+    if (choice === '2' || choice?.toLowerCase().includes('공정'))     f.userType = '제조공정도';
+    renderFiles();
+  }
+
+  function updateAnalyzeBtn() {
+    $('btnAnalyze').disabled = S.files.length === 0 || S.isAnalyzing;
+  }
+
+  /* ════════════════════
+     STEP 1 — 제품명 추출
+  ════════════════════ */
+  async function startAnalysis() {
+    // 파일 중 분석 불가 형식 체크
+    const invalid = S.files.some(f => !f.loading && f.detection?.confidence === 0);
+    if (invalid) {
+      alert('분석하고자 하는 형식의 파일이 아닙니다. 다시 확인 후 업로드해 주세요.');
+      return;
+    }
+
+    S.isAnalyzing = true;
+    $('dropZone').classList.add('locked');
+    hide('analyzingLock');
+    show('analyzingLock');
+    updateAnalyzeBtn();
+
+    hide('step1Result'); hide('step1Fallback'); hide('step1Error');
+
+    // 아직 분석 중인 파일이 있으면 완료 대기
+    const pending = S.files.filter(f => f.loading);
+    if (pending.length > 0) {
+      show('step1Loading');
+      $('s1r1').innerHTML = '<div class="spin"></div> 파일 분석 완료 대기 중...';
+      $('s1r1').className = 'loading-row active';
+      await new Promise(resolve => {
+        const check = setInterval(() => {
+          if (S.files.every(f => !f.loading)) { clearInterval(check); resolve(); }
+        }, 300);
+      });
+    }
+
+    show('step1Loading');
+    $('s1r1').innerHTML = '<div class="spin"></div> AI 분석 결과 확인 중...';
+    $('s1r1').className = 'loading-row active';
+    await new Promise(r => setTimeout(r, 400));
+
+    // 업로드 시 이미 분석된 결과 사용 (MSDS 우선, 없으면 첫 번째 파일)
+    const analyzed = S.files.find(f => f.analyzed && !f.analyzed.fallback && f.analyzed.productName)?.analyzed
+                  || S.files.find(f => f.analyzed)?.analyzed;
+
+    // 분석 결과 없음 → fallback
+    if (!analyzed) {
+      hide('step1Loading');
+      $('step1ErrorMsg').textContent = '파일 업로드 중 오류가 발생했습니다. 다시 업로드해 주세요.';
+      show('step1Error');
+      S.isAnalyzing = false;
+      $('dropZone').classList.remove('locked');
+      hide('analyzingLock');
+      updateAnalyzeBtn();
+      return;
+    }
+
+    // HWP / 텍스트 추출 불가 → fallback 입력 폼
+    if (analyzed.fallback) {
+      hide('step1Loading');
+      $('step1ErrorMsg').textContent = analyzed.error;
+      show('step1Error');
+      show('step1Fallback');
+      S.isAnalyzing = false;
+      $('dropZone').classList.remove('locked');
+      hide('analyzingLock');
+      updateAnalyzeBtn();
+      return;
+    }
+
+    S.s1 = analyzed;
+    $('s1r1').innerHTML = '✅ 제품 정보 추출 완료';
+    $('s1r1').className = 'loading-row done';
+
+    // 결과 표시
+    $('rProductName').value        = analyzed.productName  || '';
+    $('rManufacturer').textContent = analyzed.manufacturer || '정보 없음';
+    $('rOrigin').textContent       = analyzed.origin       || '정보 없음';
+    // 원재료·알코올도수는 S.s1에 보존되어 Step2/3/4에서 활용 (화면 미표시)
+
+    hide('step1Loading');
+    show('step1Result');
+  }
+
+  function proceedToStep2() {
+    // 제품명 override 반영
+    if (S.s1) S.s1.productName = $('rProductName').value;
+    show('card-step2');
+    $('card-step2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(runStep2, 300);
+  }
+
+  function manualProceed() {
+    // 입력값 없어도 진행 가능 — S.s1이 이미 있으면 직접 입력값으로 덮어쓰기만
+    if (!S.s1) S.s1 = {};
+    const name   = $('manualProductName').value.trim();
+    const origin = $('manualOrigin').value.trim();
+    if (name)   S.s1.productName = name;
+    if (origin) S.s1.origin      = origin;
+    hide('step1Fallback');
+    proceedToStep2();
+  }
+
+  function skipStep1() {
+    // API 오류 등으로 분석 실패해도 빈 S.s1로 다음 단계 진행
+    if (!S.s1) S.s1 = {};
+    hide('step1Error');
+    proceedToStep2();
+  }
+
+  /* ════════════════════
+     STEP 2 — 법령 검색
+  ════════════════════ */
+  async function runStep2() {
+    hide('step2Result'); hide('step2Fallback'); hide('step2Error');
+    show('step2Loading');
+
+    const rows = ['s2r1','s2r2','s2r3','s2r4'];
+    const labels = [
+      '쿼리 변환 중...',
+      '카테고리 필터 적용 중...',
+      'Pinecone 벡터 검색 중...',
+      '중복 제거 및 결과 정리...',
+    ];
+    rows.forEach((r, i) => {
+      $(r).innerHTML = i === 0 ? '<div class="spin"></div> ' + labels[i] : `<span>⏳</span> ${labels[i]}`;
+      $(r).className = i === 0 ? 'loading-row active' : 'loading-row';
+    });
+
+    // 순차적 로딩 애니메이션
+    for (let i = 0; i < rows.length - 1; i++) {
+      await new Promise(r => setTimeout(r, 700));
+      $(rows[i]).innerHTML   = `✅ ${labels[i].replace('중...', '완료')}`;
+      $(rows[i]).className   = 'loading-row done';
+      $(rows[i+1]).innerHTML = `<div class="spin"></div> ${labels[i+1]}`;
+      $(rows[i+1]).className = 'loading-row active';
+    }
+
+    try {
+      // Step1 결과 전체를 Step2로 전달 (쿼리 생성에 활용)
+      const data = await api('/api/step2', {
+        productName:    S.s1?.productName    || null,
+        origin:         S.s1?.origin         || null,
+        alcoholContent: S.s1?.alcoholContent || null,
+        ingredients:    S.s1?.ingredients    || [],
+      });
+      S.s2 = data;
+
+      $(rows[rows.length-1]).innerHTML = `✅ ${labels[rows.length-1].replace('중...', '완료')}`;
+      $(rows[rows.length-1]).className = 'loading-row done';
+
+      await new Promise(r => setTimeout(r, 400));
+      hide('step2Loading');
+
+      if (!data.results || data.results.length === 0) {
+        show('step2Fallback');
+        return;
+      }
+
+      // 결과 렌더링
+      $('s2Query').textContent = data.query;
+      $('s2Meta').textContent  = `사용자 업데이트 시간: ${data.updatedAt} · 후보 ${data.topKFetch}건 검색 → score 0.5 이상 ${data.topKShown}건 표시`;
+
+      // Supabase food_types 보완 사용 여부 안내
+      if (data.supabaseUsed) {
+        $('s2ResultList').insertAdjacentHTML('beforeend', `
+          <div class="alert alert-info" style="margin-bottom:10px">
+            ℹ Pinecone 법령 벡터 결과가 부족하여 Supabase 식품유형 DB를 병행 조회했습니다.
+          </div>
+        `);
+      }
+
+      const listEl = $('s2ResultList');
+      data.results.forEach(r => {
+        const isSupabase = r.source === 'supabase_food_types';
+        const pct        = r.score != null ? Math.round(r.score * 100) : null;
+        const scoreClass = r.score >= 0.5 ? 'score-good' : 'score-low';
+
+        // 출처별 배지
+        const sourceBadge = isSupabase
+          ? '<span class="badge badge-green">Supabase 식품유형DB</span>'
+          : `<span class="badge ${r.score >= 0.5 ? 'badge-blue' : 'badge-orange'}">Pinecone score ${pct}%</span>`;
+
+        // score 바 (Pinecone만)
+        const scoreBar = !isSupabase
+          ? `<div class="score-bar"><div class="score-fill ${scoreClass}" style="width:${pct}%"></div></div>
+             ${r.score < 0.5 ? '<div class="alert alert-warn mt-8" style="font-size:12px">⚠ score 0.5 미만 — 근거 신뢰도가 낮습니다.</div>' : ''}`
+          : '';
+
+        // 식품유형명 (Supabase 결과만 표시)
+        const ftName = isSupabase && r.foodTypeName
+          ? `<div style="font-size:12px;color:#2e7d32;margin-bottom:6px">식품유형: ${r.foodTypeName}</div>`
+          : '';
+
+        listEl.insertAdjacentHTML('beforeend', `
+          <div class="law-card">
+            <div class="law-card-header">
+              <span class="law-name">📋 ${r.law}</span>
+              ${sourceBadge}
+            </div>
+            ${scoreBar}
+            ${ftName}
+            <div class="law-summary mt-8">${r.summary}</div>
+            <div class="law-reason">${r.reason}</div>
+            <div class="flex gap-8" style="align-items:center">
+              <div class="law-meta">사용자 업데이트 시간: ${r.updatedAt}</div>
+              <button class="btn btn-ghost btn-sm" onclick="App.showModal('${r.law}', \`${r.fullText.replace(/`/g,"'")}\`)">원문 보기</button>
+            </div>
+          </div>
+        `);
+      });
+
+      show('step2Result');
+    } catch (e) {
+      hide('step2Loading');
+      $('step2ErrorMsg').textContent = '분석 서버에 연결할 수 없습니다(Pinecone, Supabase). 잠시 후 다시 시도해주세요.';
+      show('step2Error');
+    }
+  }
+
+  function manualFoodType() {
+    const v = $('manualFoodType').value.trim();
+    if (!v) return alert('식품유형을 입력해 주세요.');
+    if (!S.s2) S.s2 = {};
+    S.s2.manualType = v;
+    proceedToStep3();
+  }
+
+  /* ════════════════════
+     STEP 3 — 공정도 분석
+  ════════════════════ */
+  function proceedToStep3() {
+    show('card-step3');
+    $('card-step3').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(runStep3, 300);
+  }
+
+  async function runStep3() {
+    hide('step3Result'); hide('step3Error');
+    show('step3Loading');
+
+    const r3rows = ['s3r1','s3r2','s3r3'];
+    const r3labels = ['파일 형식 및 언어 감지 중...', '공정 단계 분석 중...', '법령 기준 대조 중...'];
+    r3rows.forEach((r, i) => {
+      $(r).innerHTML = i === 0 ? '<div class="spin"></div> ' + r3labels[i] : `<span>⏳</span> ${r3labels[i]}`;
+      $(r).className = i === 0 ? 'loading-row active' : 'loading-row';
+    });
+
+    for (let i = 0; i < r3rows.length - 1; i++) {
+      await new Promise(r => setTimeout(r, 900));
+      $(r3rows[i]).innerHTML   = `✅ ${r3labels[i].replace('중...', '완료')}`;
+      $(r3rows[i]).className   = 'loading-row done';
+      $(r3rows[i+1]).innerHTML = `<div class="spin"></div> ${r3labels[i+1]}`;
+      $(r3rows[i+1]).className = 'loading-row active';
+    }
+
+    try {
+      // 공정도 파일을 multipart로 서버에 전송
+      const diagrams = S.files.filter(f => {
+        const t = f.userType || f.detection?.type || '';
+        return t === '제조공정도';
+      });
+
+      // Step2에서 예측된 식품유형 추출 (guessedFoodType 우선, manualType 보조)
+      const s2FoodType = S.s2?.guessedFoodType || S.s2?.manualType || '';
+
+      let data;
+
+      if (diagrams.length === 0 || !diagrams[0]._file) {
+        // 공정도 파일 원본이 없으면 파일 없이 요청 (skipped 처리)
+        const form = new FormData();
+        form.append('s1', JSON.stringify(S.s1 || {}));
+        form.append('s2FoodType', s2FoodType);
+        const ctrl = new AbortController();
+        setTimeout(() => ctrl.abort(), 60000);
+        const res3 = await fetch('/api/step3', { method: 'POST', body: form, signal: ctrl.signal });
+        if (!res3.ok) throw new Error((await res3.json()).error || '서버 오류');
+        data = await res3.json();
+      } else {
+        const form = new FormData();
+        diagrams.forEach(f => form.append('files', f._file));
+        form.append('s1', JSON.stringify(S.s1 || {}));
+        form.append('s2FoodType', s2FoodType);
+        const ctrl = new AbortController();
+        setTimeout(() => ctrl.abort(), 60000);
+        const res3 = await fetch('/api/step3', { method: 'POST', body: form, signal: ctrl.signal });
+        if (!res3.ok) throw new Error((await res3.json()).error || '서버 오류');
+        data = await res3.json();
+      }
+      S.s3 = data;
+
+      $(r3rows[r3rows.length-1]).innerHTML = `✅ ${r3labels[r3rows.length-1].replace('중...', '완료')}`;
+      $(r3rows[r3rows.length-1]).className = 'loading-row done';
+
+      await new Promise(r => setTimeout(r, 400));
+      hide('step3Loading');
+
+      // 번역 알림
+      if (data.translated) {
+        $('s3TranslateNote').textContent = `🌐 원문 언어: ${data.language} → 한국어로 번역 후 분석됨`;
+        show('s3TranslateNote');
+      }
+      // 이미지 품질 경고
+      if (data.imageQuality === 'poor') {
+        $('s3QualityWarn').textContent = '⚠ 이미지 품질이 낮아 일부 공정 단계만 판독되었습니다.';
+        show('s3QualityWarn');
+      }
+
+      // 분석 파일명
+      const analyzedFile = S.files.find(f => {
+        const t = f.userType || f.detection?.type || '';
+        return t === '제조공정도';
+      }) || S.files[0];
+      $('s3FileInfo').innerHTML = `<div class="s3-file-badge">📄 ${analyzedFile?.name || '업로드된 파일'}</div>`;
+
+      // 공정 흐름 (순차)
+      const steps = (data.processes || []).map(p => p.step);
+      if (steps.length > 0) {
+        const flowHtml = steps
+          .map(s => `<span class="flow-step">${s}</span>`)
+          .join('<span class="flow-arrow">→</span>');
+        $('s3ProcessFlow').innerHTML = `<div class="process-flow-wrap">${flowHtml}</div>`;
+      } else {
+        $('s3ProcessFlow').innerHTML = `<div class="alert alert-warn">공정 단계를 판독하지 못했습니다.</div>`;
+      }
+
+      show('step3Result');
+    } catch (e) {
+      hide('step3Loading');
+      $('step3ErrorMsg').textContent = '분석 서버에 연결할 수 없습니다. API 연결을 확인하고 잠시 후 다시 시도해주세요.';
+      show('step3Error');
+    }
+  }
+
+  function selectConflict(source) {
+    S.selectedConflict = source;
+    $('conflictA').classList.toggle('selected', source === 'msds');
+    $('conflictB').classList.toggle('selected', source === 'diagram');
+    const chosen = source === 'msds' ? S.s3.msdsConclusion : S.s3.diagramConclusion;
+    $('conflictNote').textContent = `선택된 식품유형: ${chosen} — AI가 이 유형을 기반으로 최종 결과를 생성합니다.`;
+    $('conflictNote').style.display = 'flex';
+    $('btnProceedStep4').disabled = false;
+  }
+
+  /* ════════════════════
+     STEP 4 — 최종 결과
+  ════════════════════ */
+  function proceedToStep4() {
+    show('card-step4');
+    $('card-step4').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(runStep4, 200);
+  }
+
+  async function runStep4() {
+    // 최종 유형 결정
+    let selectedType = null;
+    if (S.s3?.conflictDetected && S.selectedConflict) {
+      selectedType = S.selectedConflict === 'msds' ? S.s3.msdsConclusion : S.s3.diagramConclusion;
+    } else if (S.s2?.manualType) {
+      selectedType = S.s2.manualType;
+    }
+
+    try {
+      const data = await api('/api/step4', {
+        selectedType,
+        s2FoodType:   S.s2?.manualType || null,
+        s3FoodType:   S.s3?.diagramConclusion || S.s3?.msdsConclusion || null,
+        supabaseDocs: S.s2?.supabaseDocs || [],
+      });
+      $('s4FinalType').textContent = data.finalType;
+      $('s4Sub').textContent       = `확정 시각: ${data.confirmedAt}`;
+      // AI 요약 표시
+      if (data.summary) {
+        const existing = $('s4Summary');
+        if (existing) existing.textContent = data.summary;
+        else {
+          $('s4FinalType').insertAdjacentHTML('afterend',
+            `<div id="s4Summary" style="font-size:13px;color:#5a6e9e;margin-top:8px;line-height:1.6">${data.summary}</div>`);
+        }
+      }
+
+      const docList = $('s4DocList');
+      docList.innerHTML = '';
+      (data.requiredDocs || []).forEach(d => {
+        docList.insertAdjacentHTML('beforeend', `
+          <div class="doc-item">
+            <span style="font-size:20px">📄</span>
+            <div>
+              <div class="doc-name">${d.name}</div>
+              <div class="doc-desc">${d.desc}</div>
+            </div>
+          </div>
+        `);
+      });
+    } catch (e) {
+      $('s4FinalType').textContent = '결과 로드 실패';
+    }
+  }
+
+  function confirmFinal() {
+    hide('s4BtnGroup');
+    show('confirmedBadge');
+    S.confirmed = true;
+    S.isAnalyzing = false;
+  }
+
+  function editFinal() {
+    const type = prompt('식품유형을 직접 입력하세요:', $('s4FinalType').textContent);
+    if (type) {
+      $('s4FinalType').textContent = type;
+      runStep4();
+    }
+  }
+
+  /* ════════════════════
+     리셋
+  ════════════════════ */
+  function resetStep(n) {
+    if (n === 1) {
+      S.files = []; S.s1 = null; S.isAnalyzing = false;
+      $('fileList').innerHTML = '';
+      $('dropZone').classList.remove('locked');
+      hide('singleFileWarn'); hide('analyzingLock');
+      hide('step1Loading'); hide('step1Result'); hide('step1Fallback'); hide('step1Error');
+      updateAnalyzeBtn();
+      hide('card-step2'); hide('card-step3'); hide('card-step4');
+      localStorage.removeItem('samc_files');
+    } else if (n === 2) {
+      S.s2 = null;
+      hide('step2Result'); hide('step2Fallback'); hide('step2Error');
+      show('step2Loading');
+      runStep2();
+    } else if (n === 3) {
+      S.s3 = null; S.selectedConflict = null;
+      hide('step3Result'); hide('step3Error');
+      show('step3Loading');
+      runStep3();
+    }
+  }
+
+  function resetAll() {
+    if (!confirm('모든 내용을 초기화하시겠습니까?')) return;
+    Object.assign(S, { files:[], isAnalyzing:false, s1:null, s2:null, s3:null, selectedConflict:null, confirmed:false });
+    localStorage.removeItem('samc_files');
+    ['step1Loading','step1Result','step1Fallback','step1Error',
+     'singleFileWarn','analyzingLock'].forEach(hide);
+    $('fileList').innerHTML = '';
+    $('dropZone').classList.remove('locked');
+    hide('card-step2'); hide('card-step3'); hide('card-step4');
+    hide('confirmedBadge');
+    show('s4BtnGroup');
+    updateAnalyzeBtn();
+  }
+
+  /* ════════════════════
+     모달
+  ════════════════════ */
+  function showModal(title, body) {
+    $('modalTitle').textContent = title;
+    $('modalBody').textContent  = body;
+    $('modalOverlay').classList.add('open');
+  }
+  function closeModal(e) {
+    if (!e || e.target === $('modalOverlay')) $('modalOverlay').classList.remove('open');
+  }
+
+  /* ════════════════════
+     탭 전환
+  ════════════════════ */
+  window.switchTab = function(tab) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    $('page-' + tab).classList.add('active');
+    event.target.classList.add('active');
+  };
+
+  /* ════════════════════
+     초기화
+  ════════════════════ */
+  function init() {
+    load(); // 세션 복원
+  }
+
+  return {
+    onDragOver, onDragLeave, onDrop, onFileSelect,
+    removeFile, editFileType,
+    startAnalysis, proceedToStep2, manualProceed, skipStep1,
+    runStep2, manualFoodType,
+    proceedToStep3, runStep3, selectConflict,
+    proceedToStep4, confirmFinal, editFinal,
+    resetStep, resetAll,
+    showModal, closeModal,
+    init,
+  };
+})();
+
+document.addEventListener('DOMContentLoaded', App.init);
+</script>
+</body>
+</html>

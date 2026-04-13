@@ -588,7 +588,7 @@ def upload_to_supabase(rows: list[dict], batch_size: int = 50):
 
     for i in range(0, total, batch_size):
         batch = rows[i : i + batch_size]
-        supabase.table("required_documents").insert(batch).execute()
+        supabase.table("f2_required_documents").insert(batch).execute()
         uploaded += len(batch)
         print(f"  → {uploaded}/{total} 업로드 완료")
 
@@ -599,7 +599,7 @@ def upload_to_supabase(rows: list[dict], batch_size: int = 50):
 
 if __name__ == "__main__":
     print("=" * 55)
-    print("  [아람 담당] required_documents 업로드")
+    print("  [아람 담당] f2_required_documents 업로드")
     print("=" * 55)
 
     # 전체 행 생성
@@ -618,5 +618,5 @@ if __name__ == "__main__":
 
     print("\n" + "=" * 55)
     print("  완료!")
-    print("  Supabase 대시보드 → required_documents 테이블 확인")
+    print("  Supabase 대시보드 → f2_required_documents 테이블 확인")
     print("=" * 55)
