@@ -8,18 +8,19 @@
 ※ 반드시 step3_chunk.py 실행 및 청크 내용 확인 후 실행하세요.
 """
 
+import hashlib
 import json
 import os
 import time
 from pathlib import Path
 
-import anthropic
 from dotenv import load_dotenv
+from openai import OpenAI
 from pinecone import Pinecone, ServerlessSpec
 
 load_dotenv("backend/.env")
 
-claude = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 INDEX_NAME = os.getenv("PINECONE_INDEX", "samc-law-index")
 CHUNK_DIR = Path("preprocessing/chunks")
@@ -27,31 +28,11 @@ CHUNK_DIR = Path("preprocessing/chunks")
 DIMENSION = 1024  # Anthropic 임베딩 차원
 
 
-def get_embedding(text: str) -> list[float]:
-    """텍스트 → 의미 번호 벡터 (임베딩)"""
-    response = claude.beta.messages.batches  # voyager 임베딩 사용
-    # Anthropic 임베딩 API 호출
-    result = anthropic.Anthropic().beta.messages.create(
-        model="claude-opus-4-6",
-        max_tokens=1,
-        messages=[{"role": "user", "content": text}],
-    )
-    # ※ 실제로는 Anthropic 임베딩 엔드포인트 또는 OpenAI 임베딩 사용
-    # 아래는 OpenAI 임베딩 대체 예시:
-    # from openai import OpenAI
-    # client = OpenAI()
-    # return client.embeddings.create(input=text, model="text-embedding-3-small").data[0].embedding
-    raise NotImplementedError("임베딩 함수를 설정하세요 (OpenAI 또는 다른 임베딩 모델)")
-
-
 def get_embedding_openai(text: str) -> list[float]:
-    """OpenAI 임베딩 (권장)"""
-    from openai import OpenAI
-
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    response = client.embeddings.create(
+    """OpenAI 임베딩 (text-embedding-3-small, 1536차원)"""
+    response = openai_client.embeddings.create(
         input=text,
-        model="text-embedding-3-small",  # 1536차원
+        model="text-embedding-3-small",
     )
     return response.data[0].embedding
 
@@ -89,9 +70,13 @@ def upload_chunks(json_path: Path, batch_size: int = 50):
 
         for chunk in batch:
             embedding = get_embedding_openai(chunk["text"])
+            # Pinecone ID는 ASCII만 허용 → 파일명 포함한 MD5 해시로 변환 (파일 간 중복 방지)
+            ascii_id = hashlib.md5(
+                f"{json_path.stem}::{chunk['id']}".encode()
+            ).hexdigest()
             vectors.append(
                 {
-                    "id": chunk["id"],
+                    "id": ascii_id,
                     "values": embedding,
                     "metadata": {
                         **chunk["metadata"],
