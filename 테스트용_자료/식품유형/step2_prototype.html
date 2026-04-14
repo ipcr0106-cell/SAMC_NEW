@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>기능2 — 식품유형 분류</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Apple SD Gothic Neo', '맑은 고딕', sans-serif;
+      background: #f4f6fb;
+      color: #222;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    /* 상단 헤더 */
+    .header {
+      margin-bottom: 28px;
+    }
+    .header .step-label {
+      font-size: 13px;
+      color: #7c8db5;
+      margin-bottom: 6px;
+    }
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a2340;
+    }
+
+    /* 카드 공통 */
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #7c8db5;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* 제품 정보 */
+    .product-info {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 10px 0;
+    }
+    .info-label {
+      font-size: 14px;
+      color: #7c8db5;
+      padding-top: 2px;
+    }
+    .info-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1a2340;
+    }
+    .ingredient-tag {
+      display: inline-block;
+      background: #f0f3fa;
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 13px;
+      color: #3d5a99;
+      margin: 2px 3px 2px 0;
+    }
+
+    /* 분류 시작 버튼 */
+    .btn-primary {
+      width: 100%;
+      padding: 16px;
+      background: #3d5a99;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: #2e4480; }
+    .btn-primary:disabled {
+      background: #b0bcd6;
+      cursor: not-allowed;
+    }
+
+    /* 로딩 스텝 */
+    .loading-steps { display: none; }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f3fa;
+      font-size: 14px;
+      color: #7c8db5;
+    }
+    .step-item:last-child { border-bottom: none; }
+    .step-item.done { color: #1a2340; }
+    .step-item.active { color: #3d5a99; font-weight: 600; }
+    .step-icon { font-size: 18px; width: 24px; text-align: center; }
+
+    /* 결과 섹션 */
+    .result-section { display: none; }
+
+    .verdict-box {
+      background: #eef2fb;
+      border-left: 4px solid #3d5a99;
+      border-radius: 0 10px 10px 0;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+    }
+    .verdict-type {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a2340;
+      margin-bottom: 6px;
+    }
+    .verdict-basis {
+      font-size: 13px;
+      color: #5a6e9e;
+    }
+
+    /* 법령 하이라이트 + 툴팁 */
+    .law-highlight {
+      background: #dde8ff;
+      color: #2a45a0;
+      border-radius: 4px;
+      padding: 1px 5px;
+      cursor: pointer;
+      position: relative;
+      font-weight: 600;
+    }
+    .tooltip {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      z-index: 100;
+      background: #fff;
+      border: 1px solid #d0daee;
+      border-radius: 10px;
+      padding: 14px 16px;
+      width: 280px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+      font-weight: 400;
+      font-size: 13px;
+      color: #333;
+      line-height: 1.6;
+    }
+    .tooltip-title {
+      font-weight: 700;
+      color: #1a2340;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    .law-highlight:hover .tooltip { display: block; }
+
+    /* 필요 서류 */
+    .doc-list { list-style: none; }
+    .doc-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f3fa;
+      font-size: 14px;
+    }
+    .doc-item:last-child { border-bottom: none; }
+    .doc-icon { color: #3d5a99; font-size: 16px; margin-top: 1px; }
+    .doc-name { font-weight: 600; color: #1a2340; }
+    .doc-desc { font-size: 12px; color: #7c8db5; margin-top: 3px; }
+
+    /* 버튼 그룹 */
+    .btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .btn-confirm {
+      padding: 14px;
+      background: #3d5a99;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-edit {
+      padding: 14px;
+      background: #fff;
+      color: #3d5a99;
+      border: 2px solid #3d5a99;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* 완료 배지 */
+    .confirmed-badge {
+      display: none;
+      text-align: center;
+      padding: 16px;
+      background: #e8f5e9;
+      border-radius: 10px;
+      color: #2e7d32;
+      font-weight: 600;
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 헤더 -->
+  <div class="header">
+    <div class="step-label">STEP 2</div>
+    <h1>식품유형 분류</h1>
+  </div>
+
+  <!-- 제품 정보 카드 -->
+  <div class="card">
+    <div class="card-title">제품 정보</div>
+    <div class="product-info">
+      <span class="info-label">제품명</span>
+      <span class="info-value">FJ 캡 프론티어 위스키 700ml</span>
+
+      <span class="info-label">수입업체</span>
+      <span class="info-value">주식회사 FJ코리아</span>
+
+      <span class="info-label">원산지</span>
+      <span class="info-value">스코틀랜드</span>
+
+      <span class="info-label">원재료</span>
+      <div>
+        <span class="ingredient-tag">맥아</span>
+        <span class="ingredient-tag">물</span>
+        <span class="ingredient-tag">효모</span>
+        <span class="ingredient-tag">캐러멜 색소</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 분류 시작 버튼 -->
+  <button class="btn-primary" id="startBtn" onclick="startClassification()">
+    식품유형 분류 시작
+  </button>
+
+  <!-- 로딩 카드 -->
+  <div class="card loading-steps" id="loadingCard">
+    <div class="card-title">분류 진행 중</div>
+    <div class="step-item" id="step-pinecone">
+      <span class="step-icon">⏳</span>
+      Pinecone에서 관련 법규 검색 중...
+    </div>
+    <div class="step-item" id="step-supabase">
+      <span class="step-icon">⏳</span>
+      Supabase에서 식품유형 기준 조회 중...
+    </div>
+    <div class="step-item" id="step-ai">
+      <span class="step-icon">⏳</span>
+      AI가 식품유형 판단 중...
+    </div>
+  </div>
+
+  <!-- 결과 섹션 -->
+  <div class="result-section" id="resultSection">
+
+    <!-- 판정 결과 카드 -->
+    <div class="card">
+      <div class="card-title">판정 결과</div>
+      <div class="verdict-box">
+        <div class="verdict-type">위스키 (주류)</div>
+        <div class="verdict-basis">
+          근거 법령:
+          <span class="law-highlight">주세법 시행령 별표3
+            <div class="tooltip">
+              <div class="tooltip-title">주세법 시행령 별표3</div>
+              위스키를 제조하는 경우 1년 이상 나무통에 넣어 저장해야 한다.
+              주정을 혼합하는 경우 알코올분의 양은 혼합된 후 해당 주류의
+              알코올분 총량의 100분의 80을 초과하지 않아야 한다.
+            </div>
+          </span>
+          &nbsp;·&nbsp;
+          <span class="law-highlight">식품공전 식품유형분류원칙
+            <div class="tooltip">
+              <div class="tooltip-title">식품공전 식품유형분류원칙</div>
+              주류는 주세법에서 별도 규정하는 식품으로,
+              일반 식품유형보다 우선 적용됩니다.
+            </div>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 필요 서류 카드 -->
+    <div class="card">
+      <div class="card-title">필요 서류</div>
+      <ul class="doc-list">
+        <li class="doc-item">
+          <span class="doc-icon">📄</span>
+          <div>
+            <div class="doc-name">주류 제조 기준 확인서</div>
+            <div class="doc-desc">1년 이상 나무통 저장 필수. 주정 혼합 시 알코올분 80% 이하</div>
+          </div>
+        </li>
+        <li class="doc-item">
+          <span class="doc-icon">📄</span>
+          <div>
+            <div class="doc-name">주세법 해당 여부 확인서</div>
+            <div class="doc-desc">주세법에서 별도 규정하는 식품. 일반 식품유형보다 우선 적용</div>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- 확인/수정 버튼 -->
+    <div class="btn-group" id="btnGroup">
+      <button class="btn-confirm" onclick="confirmResult()">✓ 확인</button>
+      <button class="btn-edit" onclick="editResult()">✎ 유형 수정</button>
+    </div>
+
+    <!-- 완료 배지 -->
+    <div class="confirmed-badge" id="confirmedBadge">
+      ✅ 식품유형 분류가 확인되었습니다. 다음 단계로 이동합니다.
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  function startClassification() {
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('startBtn').textContent = '분류 중...';
+    document.getElementById('loadingCard').style.display = 'block';
+
+    // 단계별 로딩 시뮬레이션
+    setTimeout(() => {
+      const p = document.getElementById('step-pinecone');
+      p.querySelector('.step-icon').textContent = '✅';
+      p.classList.add('done');
+      p.innerHTML = '<span class="step-icon">✅</span> Pinecone 법규 검색 완료 (3건 참조)';
+    }, 1000);
+
+    setTimeout(() => {
+      const s = document.getElementById('step-supabase');
+      s.querySelector('.step-icon').textContent = '✅';
+      s.classList.add('done');
+      s.innerHTML = '<span class="step-icon">✅</span> Supabase 식품유형 기준 조회 완료';
+    }, 2000);
+
+    setTimeout(() => {
+      const a = document.getElementById('step-ai');
+      a.querySelector('.step-icon').textContent = '✅';
+      a.classList.add('done');
+      a.innerHTML = '<span class="step-icon">✅</span> AI 판단 완료 — 위스키(주류) 확정';
+    }, 3200);
+
+    setTimeout(() => {
+      document.getElementById('loadingCard').style.display = 'none';
+      document.getElementById('resultSection').style.display = 'block';
+      document.getElementById('startBtn').style.display = 'none';
+    }, 3800);
+  }
+
+  function confirmResult() {
+    document.getElementById('btnGroup').style.display = 'none';
+    document.getElementById('confirmedBadge').style.display = 'block';
+  }
+
+  function editResult() {
+    alert('유형 수정 모달 — 추후 구현 예정');
+  }
+</script>
+</body>
+</html>

@@ -316,6 +316,88 @@
     }
     .flow-arrow { color: #7c8db5; font-size: 15px; font-weight: 700; }
 
+    /* ── 제조공정 탭 ── */
+    .pd-drop-zone {
+      border: 2px dashed #c8d4f0;
+      border-radius: 12px;
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      background: #f8f9ff;
+    }
+    .pd-drop-zone:hover, .pd-drop-zone.drag-over { border-color: #3d5a99; background: #eef2fb; }
+    .pd-drop-zone.has-file { border-color: #3d5a99; border-style: solid; background: #eef2fb; }
+    .pd-drop-icon  { font-size: 36px; margin-bottom: 10px; }
+    .pd-drop-main  { font-size: 15px; font-weight: 600; color: #1a2340; margin-bottom: 6px; }
+    .pd-drop-sub   { font-size: 13px; color: #7c8db5; margin-bottom: 4px; }
+    .pd-drop-limit { font-size: 12px; color: #a0aec0; }
+    .pd-preview {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #f0f3fa;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #3a4a6e;
+    }
+    .pd-preview img { max-height: 120px; border-radius: 6px; border: 1px solid #dde3f0; }
+    .pd-flow {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-top: 8px;
+    }
+    .pd-step-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .pd-step-num {
+      width: 28px; height: 28px;
+      background: #3d5a99; color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .pd-step-name { font-size: 15px; font-weight: 600; color: #1a2340; }
+    .pd-step-ko { font-size: 13px; font-weight: 400; color: #7c8db5; margin-left: 5px; }
+    .pd-connector {
+      width: 2px; height: 22px;
+      background: #c8d4f0;
+      margin-left: 13px;
+    }
+    /* 분기/병렬 공정 */
+    .pd-branch-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 40px;
+      margin-top: 2px;
+      margin-bottom: 2px;
+    }
+    .pd-branch-icon {
+      font-size: 15px;
+      color: #9aabd8;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .pd-branch-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #eef2fb;
+      border: 1px solid #c8d4f0;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #3d5a99;
+    }
+    .pd-branch-chip .pd-step-ko { font-size: 12px; color: #8899c8; }
+
     /* ── Step3 결론 박스 ── */
     .s3-conclusion-box {
       background: linear-gradient(135deg, #eef6ff 0%, #f0f8ff 100%);
@@ -488,6 +570,7 @@
   <div class="tab-nav">
     <button class="tab-btn active" onclick="switchTab('food-type')">식품유형</button>
     <button class="tab-btn" onclick="switchTab('product-info')">제품정보</button>
+    <button class="tab-btn" onclick="switchTab('process-diagram')">공정도 분석</button>
   </div>
   <button class="btn-reset-all" onclick="App.resetAll()">전체 초기화</button>
 </div>
@@ -592,26 +675,28 @@
     </div>
   </div>
 
-  <!-- ── STEP 2: Pinecone 법령 검색 ── -->
+  <!-- ── STEP 2: 법령 검색 & 결과 확정 ── -->
   <div class="card hidden" id="card-step2">
     <div class="card-header">
       <div>
         <div class="step-label">STEP 2</div>
-        <div class="step-title">법령 검색 (Pinecone)</div>
+        <div class="step-title">법령 검색 & 결과 확정</div>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="App.resetStep(2)">초기화</button>
     </div>
 
-    <!-- 로딩 -->
+    <!-- 로딩 (5단계) -->
     <div id="step2Loading">
       <div class="loading-row active" id="s2r1"><div class="spin"></div> 쿼리 변환 중...</div>
-      <div class="loading-row" id="s2r2"><span>⏳</span> 카테고리 필터 적용 중...</div>
-      <div class="loading-row" id="s2r3"><span>⏳</span> Pinecone 벡터 검색 중...</div>
-      <div class="loading-row" id="s2r4"><span>⏳</span> 중복 제거 및 결과 정리...</div>
+      <div class="loading-row" id="s2r2"><span>⏳</span> Pinecone 벡터 검색 중...</div>
+      <div class="loading-row" id="s2r3"><span>⏳</span> 식품유형 도출 중...</div>
+      <div class="loading-row" id="s2r4"><span>⏳</span> 결과 정리 중...</div>
+      <div class="loading-row" id="s2r5"><span>⏳</span> 최종 결과 확정 중...</div>
     </div>
 
-    <!-- 결과 -->
+    <!-- 통합 결과 -->
     <div class="hidden" id="step2Result">
+      <!-- 법령 검색 결과 -->
       <div class="step-label" style="margin-bottom:6px">변환된 검색 쿼리</div>
       <div class="query-pill" id="s2Query"></div>
       <div class="coverage-note">
@@ -619,86 +704,11 @@
       </div>
       <div id="s2ResultList"></div>
       <div class="law-meta mt-8" id="s2Meta"></div>
-      <button class="btn btn-primary btn-full mt-12" onclick="App.proceedToStep3()">
-        다음 단계 — 공정도 분석 →
-      </button>
-    </div>
 
-    <!-- 결과 없음 fallback -->
-    <div class="hidden" id="step2Fallback">
-      <div class="alert alert-warn">
-        관련 법령을 찾지 못했습니다. 식품유형을 직접 입력해 주세요.
-      </div>
-      <div class="manual-form mt-8">
-        <input type="text" id="manualFoodType" placeholder="식품유형 직접 입력 (예: 일반증류주)" />
-        <button class="btn btn-primary btn-full" onclick="App.manualFoodType()">
-          입력 완료 — 다음 단계 →
-        </button>
-      </div>
-    </div>
+      <!-- 구분선 -->
+      <div class="section-divider"></div>
 
-    <!-- API 오류 -->
-    <div class="hidden" id="step2Error">
-      <div class="alert alert-error" id="step2ErrorMsg"></div>
-      <button class="btn btn-ghost btn-full mt-8" onclick="App.runStep2()">재시도</button>
-    </div>
-  </div>
-
-  <!-- ── STEP 3: 제조공정도 분석 ── -->
-  <div class="card hidden" id="card-step3">
-    <div class="card-header">
-      <div>
-        <div class="step-label">STEP 3</div>
-        <div class="step-title">제조공정도 분석</div>
-      </div>
-      <button class="btn btn-ghost btn-sm" onclick="App.resetStep(3)">초기화</button>
-    </div>
-
-    <!-- 로딩 -->
-    <div id="step3Loading">
-      <div class="loading-row active" id="s3r1"><div class="spin"></div> 파일 형식 및 언어 감지 중...</div>
-      <div class="loading-row" id="s3r2"><span>⏳</span> 공정 단계 분석 중...</div>
-      <div class="loading-row" id="s3r3"><span>⏳</span> 법령 기준 대조 중...</div>
-    </div>
-
-    <!-- 결과 -->
-    <div class="hidden" id="step3Result">
-      <!-- 번역 알림 -->
-      <div class="alert alert-info hidden" id="s3TranslateNote"></div>
-      <!-- 이미지 품질 경고 -->
-      <div class="alert alert-warn hidden" id="s3QualityWarn"></div>
-
-      <!-- 분석 파일명 -->
-      <div class="step-label mt-12" style="margin-bottom:6px">분석 파일</div>
-      <div id="s3FileInfo"></div>
-
-      <!-- 공정 흐름 -->
-      <div class="step-label mt-12" style="margin-bottom:6px">판독된 공정 순서</div>
-      <div id="s3ProcessFlow"></div>
-
-      <button class="btn btn-primary btn-full mt-12" id="btnProceedStep4"
-              onclick="App.proceedToStep4()">
-        다음 단계 — 최종 결과 확정 →
-      </button>
-    </div>
-
-    <!-- API 오류 -->
-    <div class="hidden" id="step3Error">
-      <div class="alert alert-error" id="step3ErrorMsg"></div>
-      <button class="btn btn-ghost btn-full mt-8" onclick="App.runStep3()">재시도</button>
-    </div>
-  </div>
-
-  <!-- ── STEP 4: 최종 결과 ── -->
-  <div class="card hidden" id="card-step4">
-    <div class="card-header">
-      <div>
-        <div class="step-label">STEP 4</div>
-        <div class="step-title">최종 결과 확정</div>
-      </div>
-    </div>
-
-    <div id="step4Result">
+      <!-- 최종 결과 -->
       <div class="verdict-box">
         <div class="verdict-type" id="s4FinalType"></div>
         <div class="verdict-sub" id="s4Sub"></div>
@@ -711,10 +721,29 @@
         <button class="btn btn-primary flex-1" onclick="App.confirmFinal()">✓ 확인</button>
         <button class="btn btn-outline flex-1" onclick="App.editFinal()">✎ 유형 수정</button>
       </div>
+
+      <div class="confirmed-badge hidden" id="confirmedBadge">
+        ✅ 식품유형이 확정되었습니다. 다음 단계로 이동합니다.
+      </div>
     </div>
 
-    <div class="confirmed-badge hidden" id="confirmedBadge">
-      ✅ 식품유형이 확정되었습니다. 다음 단계로 이동합니다.
+    <!-- 결과 없음 fallback -->
+    <div class="hidden" id="step2Fallback">
+      <div class="alert alert-warn">
+        관련 법령을 찾지 못했습니다. 식품유형을 직접 입력해 주세요.
+      </div>
+      <div class="manual-form mt-8">
+        <input type="text" id="manualFoodType" placeholder="식품유형 직접 입력 (예: 일반증류주)" />
+        <button class="btn btn-primary btn-full" onclick="App.manualFoodType()">
+          입력 완료 →
+        </button>
+      </div>
+    </div>
+
+    <!-- API 오류 -->
+    <div class="hidden" id="step2Error">
+      <div class="alert alert-error" id="step2ErrorMsg"></div>
+      <button class="btn btn-ghost btn-full mt-8" onclick="App.runStep2()">재시도</button>
     </div>
   </div>
 
@@ -728,6 +757,69 @@
     <div style="font-size:40px;margin-bottom:16px">🛠</div>
     <div style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:8px">제품정보</div>
     <div style="font-size:14px;color:#7c8db5">추후 패치 예정</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     TAB 3 — 공정도 분석
+════════════════════════════════════ -->
+<div id="page-process-diagram" class="page">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="step-label">공정도 분석</div>
+        <div class="step-title">제조공정 순서 추출</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="App.resetProcessDiagram()">초기화</button>
+    </div>
+
+    <!-- 업로드 영역 -->
+    <div class="pd-drop-zone" id="pdDropZone"
+         onclick="document.getElementById('pdFileInput').click()"
+         ondragover="App.pdOnDragOver(event)"
+         ondragleave="App.pdOnDragLeave(event)"
+         ondrop="App.pdOnDrop(event)">
+      <div class="pd-drop-icon">📋</div>
+      <div class="pd-drop-main">공정도 이미지를 붙여넣기하거나 클릭하여 업로드</div>
+      <div class="pd-drop-sub">Ctrl+V 붙여넣기 · 파일 선택 · 드래그 앤 드롭</div>
+      <div class="pd-drop-limit">JPG · PNG · PDF 지원 · 최대 20MB</div>
+    </div>
+    <input type="file" id="pdFileInput" class="hidden"
+           accept=".jpg,.jpeg,.png,.pdf"
+           onchange="App.pdOnFileSelect(event)" />
+
+    <!-- 파일 미리보기 -->
+    <div class="hidden" id="pdPreview"></div>
+
+    <!-- 분석 버튼 -->
+    <button class="btn btn-primary btn-full mt-12 hidden" id="pdAnalyzeBtn"
+            onclick="App.runProcessDiagram()">
+      공정도 분석 시작
+    </button>
+
+    <!-- 로딩 -->
+    <div class="hidden" id="pdLoading">
+      <div class="section-divider"></div>
+      <div class="loading-row active" id="pdr1"><div class="spin"></div> 이미지 분석 준비 중...</div>
+      <div class="loading-row" id="pdr2"><span>⏳</span> 공정 단계 추출 중...</div>
+      <div class="loading-row" id="pdr3"><span>⏳</span> 결과 정리 중...</div>
+    </div>
+
+    <!-- 결과 -->
+    <div class="hidden" id="pdResult">
+      <div class="section-divider"></div>
+      <div class="alert alert-info hidden" id="pdLangNote"></div>
+      <div class="step-label mt-12" style="margin-bottom:10px">판독된 공정 순서</div>
+      <div id="pdFlow"></div>
+      <div class="alert alert-warn hidden mt-12" id="pdWarn"></div>
+    </div>
+
+    <!-- 오류 -->
+    <div class="hidden" id="pdError">
+      <div class="section-divider"></div>
+      <div class="alert alert-error" id="pdErrorMsg"></div>
+      <button class="btn btn-ghost btn-full mt-8" onclick="App.runProcessDiagram()">재시도</button>
+    </div>
   </div>
 </div>
 
@@ -1039,112 +1131,145 @@ const App = (() => {
     proceedToStep2();
   }
 
-  /* ════════════════════
-     STEP 2 — 법령 검색
-  ════════════════════ */
+  /* ════════════════════════════════════
+     STEP 2 — 법령 검색 & 결과 확정 (통합)
+  ════════════════════════════════════ */
   async function runStep2() {
     hide('step2Result'); hide('step2Fallback'); hide('step2Error');
     show('step2Loading');
 
-    const rows = ['s2r1','s2r2','s2r3','s2r4'];
+    const rows   = ['s2r1','s2r2','s2r3','s2r4','s2r5'];
     const labels = [
       '쿼리 변환 중...',
-      '카테고리 필터 적용 중...',
       'Pinecone 벡터 검색 중...',
-      '중복 제거 및 결과 정리...',
+      '식품유형 도출 중...',
+      '결과 정리 중...',
+      '최종 결과 확정 중...',
     ];
     rows.forEach((r, i) => {
       $(r).innerHTML = i === 0 ? '<div class="spin"></div> ' + labels[i] : `<span>⏳</span> ${labels[i]}`;
       $(r).className = i === 0 ? 'loading-row active' : 'loading-row';
     });
 
-    // 순차적 로딩 애니메이션
-    for (let i = 0; i < rows.length - 1; i++) {
+    // Step2 API 호출하면서 로딩 1~4 순차 진행
+    const advanceRow = async (idx) => {
       await new Promise(r => setTimeout(r, 700));
-      $(rows[i]).innerHTML   = `✅ ${labels[i].replace('중...', '완료')}`;
-      $(rows[i]).className   = 'loading-row done';
-      $(rows[i+1]).innerHTML = `<div class="spin"></div> ${labels[i+1]}`;
-      $(rows[i+1]).className = 'loading-row active';
-    }
+      $(rows[idx]).innerHTML   = `✅ ${labels[idx].replace('중...', '완료')}`;
+      $(rows[idx]).className   = 'loading-row done';
+      $(rows[idx+1]).innerHTML = `<div class="spin"></div> ${labels[idx+1]}`;
+      $(rows[idx+1]).className = 'loading-row active';
+    };
 
     try {
-      // Step1 결과 전체를 Step2로 전달 (쿼리 생성에 활용)
-      const data = await api('/api/step2', {
+      // Step2 API — 로딩 행 1~3 병렬 진행
+      const step2Promise = api('/api/step2', {
         productName:    S.s1?.productName    || null,
         origin:         S.s1?.origin         || null,
         alcoholContent: S.s1?.alcoholContent || null,
         ingredients:    S.s1?.ingredients    || [],
       });
-      S.s2 = data;
+      await advanceRow(0);
+      await advanceRow(1);
+      await advanceRow(2);
 
-      $(rows[rows.length-1]).innerHTML = `✅ ${labels[rows.length-1].replace('중...', '완료')}`;
-      $(rows[rows.length-1]).className = 'loading-row done';
+      const s2Data = await step2Promise;
+      S.s2 = s2Data;
 
-      await new Promise(r => setTimeout(r, 400));
-      hide('step2Loading');
+      $(rows[3]).innerHTML = `✅ ${labels[3].replace('중...', '완료')}`;
+      $(rows[3]).className = 'loading-row done';
+      $(rows[4]).innerHTML = `<div class="spin"></div> ${labels[4]}`;
+      $(rows[4]).className = 'loading-row active';
 
-      if (!data.results || data.results.length === 0) {
+      // 법령 결과 없으면 fallback
+      if (!s2Data.results || s2Data.results.length === 0) {
+        hide('step2Loading');
         show('step2Fallback');
         return;
       }
 
-      // 결과 렌더링
-      $('s2Query').textContent = data.query;
-      $('s2Meta').textContent  = `사용자 업데이트 시간: ${data.updatedAt} · 후보 ${data.topKFetch}건 검색 → score 0.5 이상 ${data.topKShown}건 표시`;
+      // Step4 API — 로딩 행 5 진행 중
+      const selectedType = s2Data.guessedFoodType || s2Data.manualType || null;
+      const step4Promise = api('/api/step4', {
+        selectedType,
+        s2FoodType:   s2Data.guessedFoodType || s2Data.manualType || null,
+        s3FoodType:   null,
+        supabaseDocs: s2Data.supabaseDocs || [],
+      });
 
-      // Supabase food_types 보완 사용 여부 안내
-      if (data.supabaseUsed) {
+      const s4Data = await step4Promise;
+
+      $(rows[4]).innerHTML = `✅ ${labels[4].replace('중...', '완료')}`;
+      $(rows[4]).className = 'loading-row done';
+      await new Promise(r => setTimeout(r, 400));
+      hide('step2Loading');
+
+      // ── 법령 검색 결과 렌더링 ──
+      $('s2Query').textContent = s2Data.query;
+      $('s2ResultList').innerHTML = '';
+      $('s2Meta').textContent = `후보 ${s2Data.topKFetch}건 검색 → ${s2Data.topKShown}건 표시`;
+
+      if (s2Data.supabaseUsed) {
         $('s2ResultList').insertAdjacentHTML('beforeend', `
           <div class="alert alert-info" style="margin-bottom:10px">
-            ℹ Pinecone 법령 벡터 결과가 부족하여 Supabase 식품유형 DB를 병행 조회했습니다.
-          </div>
-        `);
+            ℹ Pinecone 결과 부족 → Supabase 식품유형 DB 병행 조회
+          </div>`);
       }
 
-      const listEl = $('s2ResultList');
-      data.results.forEach(r => {
+      s2Data.results.forEach(r => {
         const isSupabase = r.source === 'supabase_food_types';
         const pct        = r.score != null ? Math.round(r.score * 100) : null;
         const scoreClass = r.score >= 0.5 ? 'score-good' : 'score-low';
-
-        // 출처별 배지
         const sourceBadge = isSupabase
           ? '<span class="badge badge-green">Supabase 식품유형DB</span>'
-          : `<span class="badge ${r.score >= 0.5 ? 'badge-blue' : 'badge-orange'}">Pinecone score ${pct}%</span>`;
-
-        // score 바 (Pinecone만)
+          : `<span class="badge ${r.score >= 0.5 ? 'badge-blue' : 'badge-orange'}">Pinecone ${pct}%</span>`;
         const scoreBar = !isSupabase
-          ? `<div class="score-bar"><div class="score-fill ${scoreClass}" style="width:${pct}%"></div></div>
-             ${r.score < 0.5 ? '<div class="alert alert-warn mt-8" style="font-size:12px">⚠ score 0.5 미만 — 근거 신뢰도가 낮습니다.</div>' : ''}`
-          : '';
-
-        // 식품유형명 (Supabase 결과만 표시)
+          ? `<div class="score-bar"><div class="score-fill ${scoreClass}" style="width:${pct}%"></div></div>` : '';
         const ftName = isSupabase && r.foodTypeName
-          ? `<div style="font-size:12px;color:#2e7d32;margin-bottom:6px">식품유형: ${r.foodTypeName}</div>`
-          : '';
+          ? `<div style="font-size:12px;color:#2e7d32;margin-bottom:6px">식품유형: ${r.foodTypeName}</div>` : '';
 
-        listEl.insertAdjacentHTML('beforeend', `
+        $('s2ResultList').insertAdjacentHTML('beforeend', `
           <div class="law-card">
             <div class="law-card-header">
               <span class="law-name">📋 ${r.law}</span>
               ${sourceBadge}
             </div>
-            ${scoreBar}
-            ${ftName}
+            ${scoreBar}${ftName}
             <div class="law-summary mt-8">${r.summary}</div>
             <div class="law-reason">${r.reason}</div>
             <div class="flex gap-8" style="align-items:center">
-              <div class="law-meta">사용자 업데이트 시간: ${r.updatedAt}</div>
+              <div class="law-meta">${r.updatedAt}</div>
               <button class="btn btn-ghost btn-sm" onclick="App.showModal('${r.law}', \`${r.fullText.replace(/`/g,"'")}\`)">원문 보기</button>
             </div>
-          </div>
-        `);
+          </div>`);
+      });
+
+      // ── 최종 결과 렌더링 ──
+      $('s4FinalType').textContent = s4Data.finalType;
+      $('s4Sub').textContent       = `확정 시각: ${s4Data.confirmedAt}`;
+      if (s4Data.summary) {
+        const existing = $('s4Summary');
+        if (existing) existing.textContent = s4Data.summary;
+        else $('s4FinalType').insertAdjacentHTML('afterend',
+          `<div id="s4Summary" style="font-size:13px;color:#5a6e9e;margin-top:8px;line-height:1.6">${s4Data.summary}</div>`);
+      }
+
+      $('s4DocList').innerHTML = '';
+      (s4Data.requiredDocs || []).forEach(d => {
+        $('s4DocList').insertAdjacentHTML('beforeend', `
+          <div class="doc-item">
+            <span style="font-size:20px">📄</span>
+            <div>
+              <div class="doc-name">${d.name}</div>
+              <div class="doc-desc">${d.desc}</div>
+            </div>
+          </div>`);
       });
 
       show('step2Result');
+
     } catch (e) {
       hide('step2Loading');
-      $('step2ErrorMsg').textContent = '분석 서버에 연결할 수 없습니다(Pinecone, Supabase). 잠시 후 다시 시도해주세요.';
+      $('step2ErrorMsg').textContent = '분석 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.';
       show('step2Error');
     }
   }
@@ -1154,178 +1279,8 @@ const App = (() => {
     if (!v) return alert('식품유형을 입력해 주세요.');
     if (!S.s2) S.s2 = {};
     S.s2.manualType = v;
-    proceedToStep3();
-  }
-
-  /* ════════════════════
-     STEP 3 — 공정도 분석
-  ════════════════════ */
-  function proceedToStep3() {
-    show('card-step3');
-    $('card-step3').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setTimeout(runStep3, 300);
-  }
-
-  async function runStep3() {
-    hide('step3Result'); hide('step3Error');
-    show('step3Loading');
-
-    const r3rows = ['s3r1','s3r2','s3r3'];
-    const r3labels = ['파일 형식 및 언어 감지 중...', '공정 단계 분석 중...', '법령 기준 대조 중...'];
-    r3rows.forEach((r, i) => {
-      $(r).innerHTML = i === 0 ? '<div class="spin"></div> ' + r3labels[i] : `<span>⏳</span> ${r3labels[i]}`;
-      $(r).className = i === 0 ? 'loading-row active' : 'loading-row';
-    });
-
-    for (let i = 0; i < r3rows.length - 1; i++) {
-      await new Promise(r => setTimeout(r, 900));
-      $(r3rows[i]).innerHTML   = `✅ ${r3labels[i].replace('중...', '완료')}`;
-      $(r3rows[i]).className   = 'loading-row done';
-      $(r3rows[i+1]).innerHTML = `<div class="spin"></div> ${r3labels[i+1]}`;
-      $(r3rows[i+1]).className = 'loading-row active';
-    }
-
-    try {
-      // 공정도 파일을 multipart로 서버에 전송
-      const diagrams = S.files.filter(f => {
-        const t = f.userType || f.detection?.type || '';
-        return t === '제조공정도';
-      });
-
-      // Step2에서 예측된 식품유형 추출 (guessedFoodType 우선, manualType 보조)
-      const s2FoodType = S.s2?.guessedFoodType || S.s2?.manualType || '';
-
-      let data;
-
-      if (diagrams.length === 0 || !diagrams[0]._file) {
-        // 공정도 파일 원본이 없으면 파일 없이 요청 (skipped 처리)
-        const form = new FormData();
-        form.append('s1', JSON.stringify(S.s1 || {}));
-        form.append('s2FoodType', s2FoodType);
-        const ctrl = new AbortController();
-        setTimeout(() => ctrl.abort(), 60000);
-        const res3 = await fetch('/api/step3', { method: 'POST', body: form, signal: ctrl.signal });
-        if (!res3.ok) throw new Error((await res3.json()).error || '서버 오류');
-        data = await res3.json();
-      } else {
-        const form = new FormData();
-        diagrams.forEach(f => form.append('files', f._file));
-        form.append('s1', JSON.stringify(S.s1 || {}));
-        form.append('s2FoodType', s2FoodType);
-        const ctrl = new AbortController();
-        setTimeout(() => ctrl.abort(), 60000);
-        const res3 = await fetch('/api/step3', { method: 'POST', body: form, signal: ctrl.signal });
-        if (!res3.ok) throw new Error((await res3.json()).error || '서버 오류');
-        data = await res3.json();
-      }
-      S.s3 = data;
-
-      $(r3rows[r3rows.length-1]).innerHTML = `✅ ${r3labels[r3rows.length-1].replace('중...', '완료')}`;
-      $(r3rows[r3rows.length-1]).className = 'loading-row done';
-
-      await new Promise(r => setTimeout(r, 400));
-      hide('step3Loading');
-
-      // 번역 알림
-      if (data.translated) {
-        $('s3TranslateNote').textContent = `🌐 원문 언어: ${data.language} → 한국어로 번역 후 분석됨`;
-        show('s3TranslateNote');
-      }
-      // 이미지 품질 경고
-      if (data.imageQuality === 'poor') {
-        $('s3QualityWarn').textContent = '⚠ 이미지 품질이 낮아 일부 공정 단계만 판독되었습니다.';
-        show('s3QualityWarn');
-      }
-
-      // 분석 파일명
-      const analyzedFile = S.files.find(f => {
-        const t = f.userType || f.detection?.type || '';
-        return t === '제조공정도';
-      }) || S.files[0];
-      $('s3FileInfo').innerHTML = `<div class="s3-file-badge">📄 ${analyzedFile?.name || '업로드된 파일'}</div>`;
-
-      // 공정 흐름 (순차)
-      const steps = (data.processes || []).map(p => p.step);
-      if (steps.length > 0) {
-        const flowHtml = steps
-          .map(s => `<span class="flow-step">${s}</span>`)
-          .join('<span class="flow-arrow">→</span>');
-        $('s3ProcessFlow').innerHTML = `<div class="process-flow-wrap">${flowHtml}</div>`;
-      } else {
-        $('s3ProcessFlow').innerHTML = `<div class="alert alert-warn">공정 단계를 판독하지 못했습니다.</div>`;
-      }
-
-      show('step3Result');
-    } catch (e) {
-      hide('step3Loading');
-      $('step3ErrorMsg').textContent = '분석 서버에 연결할 수 없습니다. API 연결을 확인하고 잠시 후 다시 시도해주세요.';
-      show('step3Error');
-    }
-  }
-
-  function selectConflict(source) {
-    S.selectedConflict = source;
-    $('conflictA').classList.toggle('selected', source === 'msds');
-    $('conflictB').classList.toggle('selected', source === 'diagram');
-    const chosen = source === 'msds' ? S.s3.msdsConclusion : S.s3.diagramConclusion;
-    $('conflictNote').textContent = `선택된 식품유형: ${chosen} — AI가 이 유형을 기반으로 최종 결과를 생성합니다.`;
-    $('conflictNote').style.display = 'flex';
-    $('btnProceedStep4').disabled = false;
-  }
-
-  /* ════════════════════
-     STEP 4 — 최종 결과
-  ════════════════════ */
-  function proceedToStep4() {
-    show('card-step4');
-    $('card-step4').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setTimeout(runStep4, 200);
-  }
-
-  async function runStep4() {
-    // 최종 유형 결정
-    let selectedType = null;
-    if (S.s3?.conflictDetected && S.selectedConflict) {
-      selectedType = S.selectedConflict === 'msds' ? S.s3.msdsConclusion : S.s3.diagramConclusion;
-    } else if (S.s2?.manualType) {
-      selectedType = S.s2.manualType;
-    }
-
-    try {
-      const data = await api('/api/step4', {
-        selectedType,
-        s2FoodType:   S.s2?.manualType || null,
-        s3FoodType:   S.s3?.diagramConclusion || S.s3?.msdsConclusion || null,
-        supabaseDocs: S.s2?.supabaseDocs || [],
-      });
-      $('s4FinalType').textContent = data.finalType;
-      $('s4Sub').textContent       = `확정 시각: ${data.confirmedAt}`;
-      // AI 요약 표시
-      if (data.summary) {
-        const existing = $('s4Summary');
-        if (existing) existing.textContent = data.summary;
-        else {
-          $('s4FinalType').insertAdjacentHTML('afterend',
-            `<div id="s4Summary" style="font-size:13px;color:#5a6e9e;margin-top:8px;line-height:1.6">${data.summary}</div>`);
-        }
-      }
-
-      const docList = $('s4DocList');
-      docList.innerHTML = '';
-      (data.requiredDocs || []).forEach(d => {
-        docList.insertAdjacentHTML('beforeend', `
-          <div class="doc-item">
-            <span style="font-size:20px">📄</span>
-            <div>
-              <div class="doc-name">${d.name}</div>
-              <div class="doc-desc">${d.desc}</div>
-            </div>
-          </div>
-        `);
-      });
-    } catch (e) {
-      $('s4FinalType').textContent = '결과 로드 실패';
-    }
+    hide('step2Fallback');
+    runStep2();
   }
 
   function confirmFinal() {
@@ -1339,8 +1294,193 @@ const App = (() => {
     const type = prompt('식품유형을 직접 입력하세요:', $('s4FinalType').textContent);
     if (type) {
       $('s4FinalType').textContent = type;
-      runStep4();
+      if (!S.s2) S.s2 = {};
+      S.s2.manualType = type;
+      runStep2();
     }
+  }
+
+  /* ══════════════════════════════════════
+     제조공정 탭
+  ══════════════════════════════════════ */
+  let pdFile = null; // 공정도 탭 파일 상태
+
+  function pdSetFile(file, label) {
+    pdFile = file;
+    const isImage = file.type.startsWith('image/');
+    const name = label || file.name || '파일';
+
+    $('pdDropZone').classList.add('has-file');
+    const preview = $('pdPreview');
+    preview.innerHTML = '';
+
+    if (isImage) {
+      const url = URL.createObjectURL(file);
+      preview.innerHTML = `
+        <div class="pd-preview">
+          <img src="${url}" alt="미리보기" />
+          <span>📄 ${name}</span>
+        </div>`;
+    } else {
+      preview.innerHTML = `
+        <div class="pd-preview">
+          <span style="font-size:28px">📄</span>
+          <span>${name}</span>
+        </div>`;
+    }
+    show('pdPreview');
+    show('pdAnalyzeBtn');
+    hide('pdResult'); hide('pdError'); hide('pdLoading');
+  }
+
+  function pdOnFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) pdSetFile(file, file.name);
+    e.target.value = '';
+  }
+
+  function pdOnDragOver(e)  { e.preventDefault(); $('pdDropZone').classList.add('drag-over'); }
+  function pdOnDragLeave()  { $('pdDropZone').classList.remove('drag-over'); }
+  function pdOnDrop(e) {
+    e.preventDefault();
+    $('pdDropZone').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) pdSetFile(file, file.name);
+  }
+
+  // Ctrl+V 붙여넣기 — 공정도 탭 활성 시만 동작
+  document.addEventListener('paste', (e) => {
+    if (!$('page-process-diagram').classList.contains('active')) return;
+    const items = e.clipboardData?.items || [];
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) { pdSetFile(file, '클립보드 이미지'); break; }
+      }
+    }
+  });
+
+  async function runProcessDiagram() {
+    if (!pdFile) return;
+    hide('pdResult'); hide('pdError');
+    show('pdLoading');
+    hide('pdAnalyzeBtn');
+
+    const rows   = ['pdr1','pdr2','pdr3'];
+    const labels = ['이미지 분석 준비 중...', '공정 단계 추출 중...', '결과 정리 중...'];
+    rows.forEach((r, i) => {
+      $(r).innerHTML = i === 0 ? '<div class="spin"></div> ' + labels[i] : `<span>⏳</span> ${labels[i]}`;
+      $(r).className = i === 0 ? 'loading-row active' : 'loading-row';
+    });
+
+    try {
+      // 로딩 행 순차 진행
+      const advRow = async (i) => {
+        await new Promise(r => setTimeout(r, 800));
+        $(rows[i]).innerHTML   = `✅ ${labels[i].replace('중...', '완료')}`;
+        $(rows[i]).className   = 'loading-row done';
+        if (rows[i+1]) {
+          $(rows[i+1]).innerHTML = `<div class="spin"></div> ${labels[i+1]}`;
+          $(rows[i+1]).className = 'loading-row active';
+        }
+      };
+
+      const form = new FormData();
+      form.append('files', pdFile);
+      form.append('s1', JSON.stringify({}));
+      form.append('s2FoodType', '');
+
+      const fetchPromise = fetch('/api/step3', {
+        method: 'POST', body: form,
+        signal: AbortSignal.timeout(90000),
+      });
+
+      await advRow(0);
+      await advRow(1);
+
+      const res  = await fetchPromise;
+      if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
+      const data = await res.json();
+
+      $(rows[2]).innerHTML = `✅ ${labels[2].replace('중...', '완료')}`;
+      $(rows[2]).className = 'loading-row done';
+      await new Promise(r => setTimeout(r, 400));
+      hide('pdLoading');
+
+      // 언어 알림
+      if (data.translated) {
+        $('pdLangNote').textContent = `🌐 원문 언어: ${data.language} → 한국어로 번역 후 분석`;
+        show('pdLangNote');
+      } else {
+        hide('pdLangNote');
+      }
+
+      // 공정 흐름 렌더링 (메인 + 분기 공정)
+      const processes = data.processes || [];
+      const flowEl = $('pdFlow');
+      flowEl.innerHTML = '';
+
+      if (processes.length > 0) {
+        const wrap = document.createElement('div');
+        wrap.className = 'pd-flow';
+
+        // 메인 흐름 단계만 따로 인덱스 번호 부여
+        let mainNum = 0;
+        const mainIndexes = processes.map(p => !p.isBranch ? ++mainNum : null);
+
+        processes.forEach((p, i) => {
+          const origLabel = p.step || '';
+          const koLabel   = p.stepKo ? `<span class="pd-step-ko">(${p.stepKo})</span>` : '';
+
+          if (p.isBranch) {
+            // 분기/병렬 공정: 들여쓰기 칩 형태
+            wrap.insertAdjacentHTML('beforeend', `
+              <div class="pd-branch-row">
+                <span class="pd-branch-icon">↳</span>
+                <span class="pd-branch-chip">${origLabel}${koLabel}</span>
+              </div>
+            `);
+          } else {
+            // 메인 공정: 번호 원 + 라벨
+            // 이전 항목이 분기가 아닌 메인이었으면 커넥터 추가
+            const prevMainExists = i > 0 && processes.slice(0, i).some(pp => !pp.isBranch);
+            if (prevMainExists) {
+              wrap.insertAdjacentHTML('beforeend', '<div class="pd-connector"></div>');
+            }
+            wrap.insertAdjacentHTML('beforeend', `
+              <div class="pd-step-row">
+                <div class="pd-step-num">${mainIndexes[i]}</div>
+                <div class="pd-step-name">${origLabel}${koLabel}</div>
+              </div>
+            `);
+          }
+        });
+
+        flowEl.appendChild(wrap);
+        hide('pdWarn');
+      } else {
+        $('pdWarn').textContent = '⚠ 공정 단계를 판독하지 못했습니다. 공정도 부분만 캡처해서 다시 업로드해 주세요.';
+        show('pdWarn');
+      }
+
+      show('pdResult');
+      show('pdAnalyzeBtn');
+
+    } catch (e) {
+      hide('pdLoading');
+      $('pdErrorMsg').textContent = e.message || '분석 중 오류가 발생했습니다. 다시 시도해 주세요.';
+      show('pdError');
+      show('pdAnalyzeBtn');
+    }
+  }
+
+  function resetProcessDiagram() {
+    pdFile = null;
+    $('pdDropZone').classList.remove('has-file');
+    $('pdFileInput').value = '';
+    $('pdPreview').innerHTML = '';
+    hide('pdPreview'); hide('pdAnalyzeBtn');
+    hide('pdLoading'); hide('pdResult'); hide('pdError');
   }
 
   /* ════════════════════
@@ -1354,30 +1494,25 @@ const App = (() => {
       hide('singleFileWarn'); hide('analyzingLock');
       hide('step1Loading'); hide('step1Result'); hide('step1Fallback'); hide('step1Error');
       updateAnalyzeBtn();
-      hide('card-step2'); hide('card-step3'); hide('card-step4');
+      hide('card-step2');
       localStorage.removeItem('samc_files');
     } else if (n === 2) {
       S.s2 = null;
       hide('step2Result'); hide('step2Fallback'); hide('step2Error');
       show('step2Loading');
       runStep2();
-    } else if (n === 3) {
-      S.s3 = null; S.selectedConflict = null;
-      hide('step3Result'); hide('step3Error');
-      show('step3Loading');
-      runStep3();
     }
   }
 
   function resetAll() {
     if (!confirm('모든 내용을 초기화하시겠습니까?')) return;
-    Object.assign(S, { files:[], isAnalyzing:false, s1:null, s2:null, s3:null, selectedConflict:null, confirmed:false });
+    Object.assign(S, { files:[], isAnalyzing:false, s1:null, s2:null, s3:null, confirmed:false });
     localStorage.removeItem('samc_files');
     ['step1Loading','step1Result','step1Fallback','step1Error',
      'singleFileWarn','analyzingLock'].forEach(hide);
     $('fileList').innerHTML = '';
     $('dropZone').classList.remove('locked');
-    hide('card-step2'); hide('card-step3'); hide('card-step4');
+    hide('card-step2');
     hide('confirmedBadge');
     show('s4BtnGroup');
     updateAnalyzeBtn();
@@ -1417,8 +1552,9 @@ const App = (() => {
     removeFile, editFileType,
     startAnalysis, proceedToStep2, manualProceed, skipStep1,
     runStep2, manualFoodType,
-    proceedToStep3, runStep3, selectConflict,
-    proceedToStep4, confirmFinal, editFinal,
+    confirmFinal, editFinal,
+    pdOnDragOver, pdOnDragLeave, pdOnDrop, pdOnFileSelect,
+    runProcessDiagram, resetProcessDiagram,
     resetStep, resetAll,
     showModal, closeModal,
     init,
