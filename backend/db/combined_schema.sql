@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS documents (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     case_id      UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
     doc_type     TEXT NOT NULL
-                 CHECK (doc_type IN ('ingredients','process','msds','material','other')),
+                 CHECK (doc_type IN ('ingredients','process','msds','material','label','other')),
     file_name    TEXT NOT NULL,
     storage_path TEXT NOT NULL,
     mime_type    TEXT,
