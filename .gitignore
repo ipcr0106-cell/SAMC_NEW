@@ -17,6 +17,9 @@ node_modules/
 .next/
 .turbo/
 
+# 개발 도구
+.bkit/
+
 # 기타
 .DS_Store
 Thumbs.db
