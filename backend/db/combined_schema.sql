@@ -277,6 +277,37 @@ CREATE TRIGGER trg_f1_reviews_updated_at
 -- [F2] 식품유형 분류 — 담당: 아람
 -- =============================================================
 
+-- 식품유형 분류 체계 (식품군-식품종-식품유형 3단계)
+-- 출처: 식품공전 제5장, 주세법 별표
+CREATE TABLE IF NOT EXISTS public.f2_food_type_classification (
+    id                  bigserial PRIMARY KEY,
+    category_no         text NOT NULL,              -- 대분류 번호 (예: "1", "15")
+    category_name       text NOT NULL,              -- 대분류명=식품군 (예: "과자류, 빵류 또는 떡류")
+    subcategory_name    text,                       -- 중분류명=식품종 (예: "발효주류", "증류주류". 없으면 NULL)
+    type_name           text NOT NULL,              -- 소분류명=식품유형 (예: "과자", "위스키")
+    definition          text,                       -- 식품유형 정의
+    category_definition text,                       -- 대분류 정의
+    law_source          text DEFAULT '식품공전 제5장',
+    law_number          text,                       -- 법령 번호
+    effective_date      date,                       -- 시행일
+    is_verified         boolean DEFAULT false,      -- 사람 검수 완료 여부
+    created_at          timestamptz NOT NULL DEFAULT now()
+);
+
+-- 기존 테이블에 subcategory_name 컬럼 추가 (이미 존재하면 무시)
+ALTER TABLE f2_food_type_classification
+    ADD COLUMN IF NOT EXISTS subcategory_name text;  -- 중분류명=식품종
+
+CREATE INDEX IF NOT EXISTS idx_f2_food_type_classification_cat
+    ON f2_food_type_classification(category_no);
+CREATE INDEX IF NOT EXISTS idx_f2_food_type_classification_name
+    ON f2_food_type_classification(type_name);
+CREATE INDEX IF NOT EXISTS idx_f2_food_type_classification_subcat
+    ON f2_food_type_classification(subcategory_name)
+    WHERE subcategory_name IS NOT NULL;
+
+-- 수입 필요서류 목록 (식품유형별)
+-- 출처: 수입신고시 제출하여야 하는 구비서류 목록(2026.2.5.현재).xlsx
 CREATE TABLE IF NOT EXISTS public.f2_required_documents (
     id              bigserial PRIMARY KEY,
     food_type       text NOT NULL,
@@ -442,6 +473,29 @@ CREATE TABLE IF NOT EXISTS f5_required_documents (
     law_source      TEXT,
     created_by      UUID REFERENCES auth.users(id)
 );
+
+-- f5_ingredient_list가 이미 존재할 경우 누락 컬럼 보완
+ALTER TABLE f5_ingredient_list ADD COLUMN IF NOT EXISTS name_scientific TEXT;
+ALTER TABLE f5_ingredient_list ADD COLUMN IF NOT EXISTS name_en         TEXT;
+ALTER TABLE f5_ingredient_list ADD COLUMN IF NOT EXISTS ins_number      TEXT;
+ALTER TABLE f5_ingredient_list ADD COLUMN IF NOT EXISTS cas_number      TEXT;
+ALTER TABLE f5_ingredient_list ADD COLUMN IF NOT EXISTS aliases         TEXT[];
+ALTER TABLE f5_ingredient_list ADD COLUMN IF NOT EXISTS usage_part      TEXT;
+ALTER TABLE f5_ingredient_list ADD COLUMN IF NOT EXISTS usage_condition TEXT;
+ALTER TABLE f5_ingredient_list ADD COLUMN IF NOT EXISTS is_allowed      BOOLEAN DEFAULT true;
+ALTER TABLE f5_ingredient_list ADD COLUMN IF NOT EXISTS law_source      TEXT;
+ALTER TABLE f5_ingredient_list ADD COLUMN IF NOT EXISTS created_by      UUID REFERENCES auth.users(id);
+
+-- f5_thresholds가 이미 존재할 경우 누락 컬럼 보완 (ALTER TABLE ... ADD COLUMN IF NOT EXISTS)
+ALTER TABLE f5_thresholds ADD COLUMN IF NOT EXISTS compound_group    TEXT;
+ALTER TABLE f5_thresholds ADD COLUMN IF NOT EXISTS is_compound_limit BOOLEAN DEFAULT false;
+ALTER TABLE f5_thresholds ADD COLUMN IF NOT EXISTS condition_text    TEXT;
+ALTER TABLE f5_thresholds ADD COLUMN IF NOT EXISTS law_article       TEXT;
+ALTER TABLE f5_thresholds ADD COLUMN IF NOT EXISTS is_verified       BOOLEAN DEFAULT false;
+ALTER TABLE f5_thresholds ADD COLUMN IF NOT EXISTS extracted_at      TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE f5_thresholds ADD COLUMN IF NOT EXISTS verified_by       UUID REFERENCES auth.users(id);
+ALTER TABLE f5_thresholds ADD COLUMN IF NOT EXISTS verified_at       TIMESTAMPTZ;
+ALTER TABLE f5_thresholds ADD COLUMN IF NOT EXISTS created_by        UUID REFERENCES auth.users(id);
 
 CREATE INDEX IF NOT EXISTS idx_f5_thresholds_ingredient ON f5_thresholds(ingredient_name, food_type);
 CREATE INDEX IF NOT EXISTS idx_f5_thresholds_compound   ON f5_thresholds(compound_group) WHERE compound_group IS NOT NULL;
