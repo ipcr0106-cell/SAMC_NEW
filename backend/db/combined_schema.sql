@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS pipeline_steps (
     final_result   JSONB,
     edited_by      UUID REFERENCES auth.users(id),
     edit_reason    TEXT,
-    law_references JSONB,
+    validation_result JSONB,
     created_at     TIMESTAMPTZ DEFAULT NOW(),
     updated_at     TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (case_id, step_key)
@@ -335,6 +335,30 @@ CREATE TABLE IF NOT EXISTS f4_prohibited_expressions (
 CREATE INDEX IF NOT EXISTS idx_f4_prohibited_keyword   ON f4_prohibited_expressions(keyword);
 CREATE INDEX IF NOT EXISTS idx_f4_prohibited_category  ON f4_prohibited_expressions(category);
 CREATE INDEX IF NOT EXISTS idx_f4_prohibited_severity  ON f4_prohibited_expressions(severity);
+
+
+-- 이미지 위반 유형 목록 (법령 개정 시 자동 갱신)
+-- source='seed'  → 초기 하드코딩 26개
+-- source='auto'  → 법령 업데이트 시 Claude가 자동 추출 (is_active=false → 관리자 검토 후 활성화)
+-- source='manual'→ 관리자가 직접 입력
+CREATE TABLE IF NOT EXISTS f4_image_violation_types (
+    id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    type_name        TEXT        NOT NULL UNIQUE,           -- 유형명 (예: "질병 치료·예방 암시")
+    sub_items        TEXT        NOT NULL,                  -- 세부 탐지 기준 (줄바꿈 구분)
+    default_severity TEXT        NOT NULL DEFAULT 'review_needed'
+                                 CHECK (default_severity IN ('must_fix', 'review_needed')),
+    severity_condition TEXT      DEFAULT '',                -- 조건부 severity 설명
+    law_ref          TEXT        NOT NULL,                  -- 근거 조문
+    source           TEXT        NOT NULL DEFAULT 'auto'
+                                 CHECK (source IN ('auto', 'manual', 'seed')),
+    is_active        BOOLEAN     NOT NULL DEFAULT FALSE,    -- 관리자 검토 후 TRUE로 변경
+    review_note      TEXT        DEFAULT '',                -- 관리자 검토 메모
+    created_at       TIMESTAMPTZ DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_f4_imgviol_active   ON f4_image_violation_types(is_active);
+CREATE INDEX IF NOT EXISTS idx_f4_imgviol_source   ON f4_image_violation_types(source);
 
 
 -- =============================================================
