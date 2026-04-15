@@ -137,6 +137,7 @@ export default function DashboardPage() {
         { label: "새 건 등록", desc: "수입식품 검역 건을 새로 시작합니다", action: handleNewCase },
         { label: "전체 건 목록", desc: "등록된 검역 건 현황을 확인합니다", action: () => scrollTo("cases-section") },
         { label: "완료된 건", desc: "검역이 완료된 건을 조회합니다", action: () => scrollTo("cases-section") },
+        { label: "법령 DB 관리", desc: "법령 파일 업데이트 및 DB 재구축", action: () => router.push("/admin/law-update") },
       ],
     },
     { label: "AI 기능", active: false, action: () => scrollTo("features-section") },

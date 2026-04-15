@@ -16,7 +16,7 @@
 | 기능 | 담당 | 상태 | 병합일 |
 |------|------|------|--------|
 | f0 입력+OCR+로그인 | 경아 | **병합 완료** | 2026-04-15 |
-| F1 수입판정 | 병찬 | 미병합 | - |
+| F1 수입판정 | 병찬 | **병합 완료** | 2026-04-16 |
 | F2 유형분류 | 아람 | 미병합 | - |
 | F3 필요서류 | 유빈 | 미병합 | - |
 | F4 라벨검토 | 성은 | **병합 완료** | 2026-04-15 |
@@ -234,13 +234,192 @@ app.include_router(admin_laws_router)
 
 ---
 
-## F1 (병찬) — 수입 가능 판정
+## 통합 법령 업데이트 시스템
 
-> 병합 시 이 섹션 추가 예정
+> f0 레벨에서 관리. 기능 병합 시마다 매핑 테이블만 수정하면 자동 연결.
+
+### 구조
+
+```
+사용자: 대시보드 → 검역관리▼ → 법령 DB 관리 → /admin/law-update
+         ↓
+   법령 종류별 카드에 PDF/HWPX 드래그앤드롭
+         ↓
+   "선택한 법령 업데이트" 클릭
+         ↓
+백엔드: LAW_FEATURE_MAP에서 법령 → 관련 기능 조회
+         ↓
+   관련 기능 전처리 함수 병렬 실행 (SSE로 진행도 스트리밍)
+         ↓
+프론트: 팝업에서 법령×기능별 진행도 실시간 표시
+```
 
 ### 소유 파일
-- `frontend/app/cases/[id]/f1/page.tsx` (현재 stub — 병합 시 교체)
-- (병합 후 업데이트)
+
+- `backend/routers/admin_law_update.py` — 통합 법령 업데이트 라우터
+- `frontend/app/admin/law-update/page.tsx` — 법령 업데이트 페이지
+- `frontend/app/dashboard/page.tsx` — 검역관리 드롭다운에 "법령 DB 관리" 항목 포함
+
+### API 엔드포인트
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/admin/law-update/laws` | 업데이트 가능 법령 목록 + 기능 매핑 |
+| POST | `/admin/law-update/upload` | 다건 법령 업로드 → SSE 진행도 스트리밍 |
+
+### 법령 ↔ 기능 매핑 테이블 (`LAW_FEATURE_MAP`)
+
+| 법령명 | 관련 기능 | 비고 |
+|--------|-----------|------|
+| 식품공전 | F1 | F2 병합 시 → [F1, F2] |
+| 식품첨가물공전 | F1 | F3 병합 시 → [F1, F3] |
+| 건강기능식품공전 | F1 | |
+| 식품등의 한시적 기준 및 규격 인정 기준 | F1, F4 | 업로드 시 두 기능 동시 전처리 |
+| 식품 등의 표시·광고에 관한 법률 | F4 | |
+| 식품 등의 표시·광고에 관한 법률 시행령 | F4 | |
+| 식품 등의 표시·광고에 관한 법률 시행규칙 | F4 | |
+| 식품등의 표시기준 | F4 | |
+| 식품등의 부당한 표시 또는 광고의 내용 기준 | F4 | |
+| 기능성 표시·광고 허용 규정 | F4 | |
+
+### 기능별 전처리 방식 차이
+
+| 기능 | 전처리 함수 | 방식 | 저장소 |
+|------|------------|------|--------|
+| F1 | `law_extractor.extract_thresholds_bulk()` | Claude LLM → 구조화 기준치 | Supabase (f1_ 테이블) |
+| F4 | `preprocess_laws.preprocess_single_law()` | 임베딩 → 벡터 upsert | Pinecone + Supabase (f4_ 테이블) |
+
+### 기능 병합 시 법령 업데이트 추가 방법
+
+`backend/routers/admin_law_update.py`에서 **2곳만 수정**:
+
+```python
+# 1. LAW_FEATURE_MAP — features 리스트에 기능 코드 추가
+"식품공전": { "features": ["F1", "F2"], ... }  # ← "F2" 추가
+
+# 2. FEATURE_PROCESSORS — 전처리 함수 등록
+FEATURE_PROCESSORS = {
+    "F1": _run_f1_preprocess,
+    "F4": _run_f4_preprocess,
+    "F2": _run_f2_preprocess,  # ← 추가
+}
+```
+
+프론트엔드는 법령 목록을 API에서 받아오므로 **수정 불필요**.
+
+---
+
+## F1 (병찬) — 수입 가능 판정 (**병합 완료**)
+
+### 소유 파일 (다른 기능이 수정 금지)
+
+**백엔드:**
+- `backend/routers/feature1.py` — F1 파이프라인 API (GET/POST/PATCH/confirm)
+- `backend/routers/db_manager.py` — F1 DB 직접 관리 CRUD
+- `backend/services/feature1.py` — F1 통합 오케스트레이션 (Step 0+1+3)
+- `backend/services/step1_ingredients_check.py` — 원재료 허용/금지 판정
+- `backend/services/step3_standards.py` — 기준치 수치 비교 (일반+주류)
+- `backend/services/law_extractor.py` — 법령→기준치 Claude 추출
+- `backend/models/judgment.py` — F1 Pydantic 모델
+- `backend/utils/chunker.py` — 법령 마크다운 청킹
+- `backend/utils/cleaner.py` — kordoc 변환 후 마크다운 정제
+- `backend/utils/unit_converter.py` — 단위 변환 엔진
+- `backend/constants/condition_patterns.py` — 조건부 원료 분류 패턴
+- `backend/constants/gmo.py` — GMO 위험 원료 상수
+- `backend/constants/thresholds_config.py` — F1 매칭/검증 임계값
+- `backend/db/connection.py` — asyncpg 커넥션 풀 (F1 DB 쿼리용)
+- `backend/db/migrations/001~009*.sql` — F1 테이블 마이그레이션
+- `backend/db/seed/01~05*.sql` — F1 초기 데이터
+- `backend/scripts/bootstrap_f1_db.py` — F1 DB 부트스트랩
+- `backend/scripts/apply_migrations.py` — 마이그레이션 자동 적용
+
+**프론트엔드:**
+- `frontend/features/feature1/` 폴더 전체:
+  - `ImportCheckPage.tsx` — F1 메인 컴포넌트
+  - `hooks/useImportCheck.ts` — 상태 관리 훅
+  - `api/importCheck.ts` — F1 전용 API 함수
+  - `components/AggregationSummary.tsx` — 판정 요약
+  - `components/ConfirmActions.tsx` — 확인 버튼
+  - `components/ForbiddenAlert.tsx` — 금지 알림
+  - `components/IngredientMatchTable.tsx` — 원재료 매칭 테이블
+  - `components/LawRefCheckbox.tsx` — 법령 참고 체크박스
+  - `components/StandardsSummary.tsx` — 기준치 요약
+  - `components/VerdictPanel.tsx` — 최종 판정 패널
+  - `types.ts`, `constants.ts` — F1 전용 타입/상수
+- `frontend/app/cases/[id]/f1/page.tsx` — F1 페이지 라우트 (f0 레이아웃 유지)
+
+### F1 API 엔드포인트 (수정 금지)
+
+**feature1.py 라우터** (prefix: `/api/v1/cases/{case_id}/pipeline/feature/1`)
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `.../feature/1` | F1 결과 조회 |
+| POST | `.../feature/1/run` | F1 실행 (DB 쿼리 → 판정) |
+| PATCH | `.../feature/1` | 담당자 수정 (final_result) |
+| POST | `.../feature/1/confirm` | 확인 완료 → 다음 단계 |
+
+**db_manager.py 라우터** (prefix: `/api/v1/admin/db`)
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/v1/admin/db/{table}` | F1 테이블 목록 조회 |
+| POST | `/api/v1/admin/db/{table}` | 신규 항목 추가 |
+| PATCH | `/api/v1/admin/db/{table}/{id}` | 수정 (본인 항목만) |
+| DELETE | `/api/v1/admin/db/{table}/{id}` | 삭제 (본인 항목만) |
+
+### F1 main.py 등록 (완료)
+
+```python
+from routers.feature1 import router as feature1_router
+from routers.db_manager import router as db_manager_router
+
+app.include_router(feature1_router)
+app.include_router(db_manager_router)
+```
+
+lifespan 훅에서 `F1_DATABASE_URL`로 asyncpg 커넥션 풀 초기화 추가됨.
+
+### F1 DB 테이블 (f1_ prefix)
+
+- `f1_allowed_ingredients` — 허용 원료 (식품공전 별표1)
+- `f1_forbidden_ingredients` — 금지 원료 (식품공전 별표3)
+- `f1_additive_limits` — 첨가물 기준치
+- `f1_safety_standards` — 중금속/미생물/주류 안전기준
+- `f1_ingredient_synonyms` — 원료 동의어
+- `f1_escalation_logs` — 에스컬레이션 로그
+
+### ⚠️ F1 DB 마이그레이션 — 병찬님 필수 작업
+
+> **코드 병합은 완료되었으나, Supabase에 F1 테이블이 아직 생성되지 않았습니다.**
+> F1이 정상 작동하려면 아래 SQL을 Supabase SQL Editor에서 순서대로 실행해야 합니다.
+
+**실행 순서:**
+1. `backend/db/migrations/001_pg_trgm_extension.sql` — pg_trgm 확장
+2. `backend/db/migrations/002_f1_allowed_ingredients.sql`
+3. `backend/db/migrations/003_f1_additive_limits.sql`
+4. `backend/db/migrations/004_f1_safety_standards.sql`
+5. `backend/db/migrations/005_f1_ingredient_synonyms.sql`
+6. `backend/db/migrations/006_f1_forbidden_ingredients.sql`
+7. `backend/db/migrations/007_f1_escalation_logs.sql`
+8. `backend/db/migrations/008_f1_trgm_indexes_rpc.sql` — 텍스트 검색 인덱스
+9. `backend/db/migrations/009_f1_rls_policies.sql` — 행 수준 보안
+
+**시드 데이터 (마이그레이션 후):**
+1. `backend/db/seed/01_f1_ingredients_permitted.sql` — 허용 원료 85건
+2. `backend/db/seed/02_f1_ingredients_restricted.sql` — 조건부 원료
+3. `backend/db/seed/03_f1_ingredients_prohibited.sql` — 금지 원료
+4. `backend/db/seed/04_f1_forbidden_ingredients.sql` — 금지 원료 확장
+5. `backend/db/seed/05_f1_thresholds_core.sql` — 기준치 코어
+
+또는 `python -m scripts.bootstrap_f1_db` 로 일괄 적용 가능.
+
+### F1 env 키
+
+| 키 이름 | 용도 | 사용 기능 |
+|---------|------|-----------|
+| `F1_DATABASE_URL` | asyncpg 직접 연결 | F1 (connection.py) |
+| `F1_ANTHROPIC_API_KEY` | Claude 기준치 추출 | F1 (law_extractor.py) |
 
 ---
 
@@ -298,6 +477,31 @@ from routers.feature4 import router as feature4_router
 app.include_router(feature4_router)
 ```
 
+### 프론트엔드 병합 후 반드시 할 것 — .next 캐시 삭제
+
+기능 병합 후 TypeScript 에러가 나면 `.next/` 캐시가 원인일 가능성이 높습니다.
+
+```bash
+cd frontend
+rm -rf .next
+npx next build    # 또는 npm run build
+```
+
+- `.next/`는 Next.js가 빌드/dev 시 자동생성하는 캐시 폴더 (`.gitignore`에 포함)
+- 이전 빌드의 타입 정의가 남아 있으면 새로 추가한 페이지와 충돌하는 에러가 발생할 수 있음
+- **병합 후 처음 빌드할 때는 항상 `.next/` 삭제 후 클린 빌드 권장**
+
+### 기능별 수정 요청 문서
+
+병합 가이드가 길어지는 것을 방지하기 위해, 각 담당자에게 전달할 수정/확인 요청은 별도 파일로 관리합니다.
+
+| 파일 | 대상 | 내용 |
+|------|------|------|
+| `f0_수정_요청_사항.md` | 경아 (f0) | OCR 필드 추가 요청 (part, sub_ingredients, alcohol_percentage 등) |
+| `f1_수정_요청_사항.md` | 병찬 (F1) | DB 마이그레이션, env 키, 미사용 필드 확인, PM 임의 파이프라인 연결 수정 가이드 |
+
+> 기능 병합 시마다 `f{N}_수정_요청_사항.md`를 생성하여 해당 담당자에게 전달합니다.
+
 ---
 
 ## .env 키 네이밍 규칙 (필수)
@@ -329,6 +533,8 @@ app.include_router(feature4_router)
 | `F4_PINECONE_API_KEY` | 법령 검색 | f4 |
 | `F4_PINECONE_HOST` | 인덱스 호스트 | f4 |
 | `F4_DEEPL_API_KEY` | 번역 (선택) | f4 |
+| `F1_DATABASE_URL` | asyncpg 직접 연결 | F1 |
+| `F1_ANTHROPIC_API_KEY` | Claude 기준치 추출 | F1 |
 
 ### .env 파일 위치 (총 2개)
 
