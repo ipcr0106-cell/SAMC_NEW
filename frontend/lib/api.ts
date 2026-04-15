@@ -40,14 +40,52 @@ export async function apiFormPost<T>(
   formData: FormData,
   timeout = 90_000,
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    body: formData,
-    signal: AbortSignal.timeout(timeout),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error ?? '서버 오류');
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      body: formData,
+      signal: ctrl.signal,
+    });
+    clearTimeout(tid);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err as { error?: string }).error ?? '서버 오류');
+    }
+    return res.json() as Promise<T>;
+  } catch (e) {
+    clearTimeout(tid);
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new Error('요청 시간이 초과되었습니다. (AI 분석 지연)');
+    }
+    throw e;
   }
-  return res.json() as Promise<T>;
 }
+
+// ── 5개 기능 연동 API (팀 컨벤션 룰 준수) ─────────────────────────
+
+// 기능 1: 수입 가능 여부 판정
+export const getImportCheck = async <T>(caseId: string): Promise<T> => {
+  return apiPost<T>(`/cases/${caseId}/pipeline/feature/1/run`, {});
+};
+
+// 기능 2: 식품유형 분류
+export const getFoodType = async <T>(caseId: string): Promise<T> => {
+  return apiPost<T>(`/cases/${caseId}/pipeline/feature/2/run`, {});
+};
+
+// 기능 3: 수입 필요서류 안내
+export const getRequiredDocs = async <T>(caseId: string): Promise<T> => {
+  return apiPost<T>(`/cases/${caseId}/pipeline/feature/3/run`, {});
+};
+
+// 기능 4: 수출국표시사항 검토
+export const getForeignLabelCheck = async <T>(caseId: string): Promise<T> => {
+  return apiPost<T>(`/cases/${caseId}/pipeline/feature/4/run`, {});
+};
+
+// 기능 5: 한글표시사항 검토
+export const getKoreanLabel = async <T>(caseId: string): Promise<T> => {
+  return apiPost<T>(`/cases/${caseId}/pipeline/feature/5/run`, {});
+};

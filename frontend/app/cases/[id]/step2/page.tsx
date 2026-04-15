@@ -41,58 +41,41 @@ interface S1State {
   ingredients?: string[];
 }
 
-interface LawResult {
-  source: string;
+interface LawBase {
+  id: string;
+  tier: number;
   law: string;
-  score: number | null;
+  subLaw: string | null;
+  subLawTitle: string | null;
+  article: string | null;
+  effectiveDate: string | null;
+  lawNumber: string | null;
   summary: string;
-  reason: string;
   fullText: string;
-  updatedAt: string;
-  foodTypeName?: string;
+  foodTypeName: string | null;
+  selected: boolean;
 }
 
-interface Section {
-  text: string;
-  relatedLaw: string | null;
+interface Classification {
+  large: string;
+  medium: string;
+  small: string;
 }
 
-interface AdditivesSection {
-  list: string[];
-  text: string;
-  relatedLaw: string | null;
-}
-
-interface Sections {
-  contentIngredients: Section;
-  additives: AdditivesSection;
-  specialNotes: Section;
+interface Verdict {
+  foodType: string;
+  lawRef: string;
+  confidence: 'high' | 'medium' | 'low';
+  reasoning: string;
 }
 
 interface S2Data {
   query: string;
-  topKFetch: number;
-  topKShown: number;
-  supabaseUsed: boolean;
-  guessedFoodType: string;
-  results: LawResult[];
-  sections: Sections | null;
-  supabaseDocs: SupabaseDoc[];
-}
-
-interface SupabaseDoc {
-  food_type: string;
-  doc_name: string;
-  doc_description: string;
-  law_source: string;
-  condition: string;
-}
-
-interface S4Data {
-  finalType: string;
-  summary: string;
-  confirmedAt: string;
-  requiredDocs: { name: string; desc: string; law: string }[];
+  isAlcohol: boolean;
+  alcoholBasis: string[];
+  classification: Classification;
+  lawBases: LawBase[];
+  verdict: Verdict;
 }
 
 interface Process {
@@ -110,7 +93,7 @@ interface Step3Response {
   language?: string;
 }
 
-type Tab = 'food-type' | 'product-info' | 'process-diagram';
+type Tab = 'food-type' | 'process-diagram';
 type RowStatus = 'idle' | 'active' | 'done';
 type Step1Phase = 'idle' | 'loading' | 'result' | 'fallback' | 'error';
 type Step2Phase = 'loading' | 'result' | 'fallback' | 'error';
@@ -118,11 +101,10 @@ type PdPhase = 'idle' | 'loading' | 'result' | 'error';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const S2_LABELS = [
-  '쿼리 변환 중...',
-  'Pinecone 벡터 검색 중...',
-  '식품유형 도출 중...',
-  '결과 정리 중...',
-  '최종 결과 확정 중...',
+  '주류 여부 판단 중...',
+  'Pinecone 법령 검색 중...',
+  '식품유형 3단계 분류 중...',
+  '판정 결과 정리 중...',
 ];
 const PD_LABELS = ['이미지 분석 준비 중...', '공정 단계 추출 중...', '결과 정리 중...'];
 const ALLOWED_EXTS = ['pdf', 'jpg', 'jpeg', 'png', 'hwp'];
@@ -161,6 +143,49 @@ function LoadingRowEl({ label, status }: { label: string; status: RowStatus }) {
   );
 }
 
+function AlcoholCheckbox({
+  value,
+  onChange,
+}: {
+  value: boolean | null;
+  onChange: (v: boolean | null) => void;
+}) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '10px 14px', borderRadius: 8, marginBottom: 10,
+      background: value === true ? '#fde8e8' : value === false ? '#e8f4fd' : '#f5f5f5',
+      border: `1px solid ${value === true ? '#f5c6cb' : value === false ? '#bee5eb' : '#ddd'}`,
+    }}>
+      <input
+        type="checkbox"
+        id="alcohol-check"
+        checked={value === true}
+        onChange={e => onChange(e.target.checked ? true : null)}
+        style={{ width: 16, height: 16, cursor: 'pointer' }}
+      />
+      <label htmlFor="alcohol-check" style={{ cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>
+        이 제품은 <span style={{ color: '#c0392b' }}>주류</span>입니다
+      </label>
+      <span style={{ fontSize: 12, color: '#888', marginLeft: 4 }}>
+        {value === true
+          ? '→ 주세법 1순위 적용'
+          : value === false
+          ? '→ 식품공전 1순위 적용'
+          : '(미선택 시 AI가 자동 판단)'}
+      </span>
+      {value === true && (
+        <button
+          onClick={() => onChange(null)}
+          style={{ marginLeft: 'auto', fontSize: 11, color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}
+        >
+          취소
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function Step2Page() {
   // File management
@@ -172,21 +197,28 @@ export default function Step2Page() {
   const [step1Phase, setStep1Phase] = useState<Step1Phase>('idle');
   const [step1ErrMsg, setStep1ErrMsg] = useState('');
   const [productNameInput, setProductNameInput] = useState('');
+  const [manufacturerInput, setManufacturerInput] = useState('');
+  const [originInput, setOriginInput] = useState('');
   const [manualProductName, setManualProductName] = useState('');
   const [manualOrigin, setManualOrigin] = useState('');
   const [s1LoadingMsg, setS1LoadingMsg] = useState('AI가 파일에서 제품 정보 추출 중...');
   const [s1Done, setS1Done] = useState(false);
+
+  // 주류 여부 사용자 직접 지정 (null = 미선택 → 서버 자동 감지)
+  const [userIsAlcohol, setUserIsAlcohol] = useState<boolean | null>(null);
 
   // Step 2
   const [showStep2, setShowStep2] = useState(false);
   const [step2Phase, setStep2Phase] = useState<Step2Phase>('loading');
   const [step2ErrMsg, setStep2ErrMsg] = useState('');
   const [s2Data, setS2Data] = useState<S2Data | null>(null);
-  const [s4Data, setS4Data] = useState<S4Data | null>(null);
-  const [s2Rows, setS2Rows] = useState<RowStatus[]>(['active', 'idle', 'idle', 'idle', 'idle']);
-  const [confirmed, setConfirmed] = useState(false);
-  const [manualFoodTypeInput, setManualFoodTypeInput] = useState('');
-  const [foodTypeOverride, setFoodTypeOverride] = useState<string | null>(null);
+  const [lawBases, setLawBases] = useState<LawBase[]>([]);
+  const [verdictConfirmed, setVerdictConfirmed] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isVerdictStale, setIsVerdictStale] = useState(false);
+  const [isReVerdicting, setIsReVerdicting] = useState(false);
+  const [reVerdictErr, setReVerdictErr] = useState('');
+  const [s2Rows, setS2Rows] = useState<RowStatus[]>(['active', 'idle', 'idle', 'idle']);
 
   // Process diagram
   const [pdFile, setPdFile] = useState<File | null>(null);
@@ -213,17 +245,6 @@ export default function Step2Page() {
   // files 변경 시마다 ref 동기화
   useEffect(() => { filesRef.current = files; }, [files]);
 
-  // ── Session restore ──
-  useEffect(() => {
-    try {
-      const d = localStorage.getItem('samc_files');
-      if (d) {
-        const saved = JSON.parse(d) as Omit<FileItem, '_file'>[];
-        setFiles(saved.map(f => ({ ...f, _file: undefined })));
-      }
-    } catch { /* ignore */ }
-  }, []);
-
   // ── Ctrl+V paste (공정도 탭 활성 시) ──
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -239,14 +260,6 @@ export default function Step2Page() {
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
   }, [activeTab]);
-
-  // ── File save ──
-  function saveFiles(fs: FileItem[]) {
-    try {
-      localStorage.setItem('samc_files',
-        JSON.stringify(fs.map(({ _file, ...rest }) => rest)));
-    } catch { /* ignore */ }
-  }
 
   // ── File handling ──
   async function addFile(file: File) {
@@ -273,29 +286,24 @@ export default function Step2Page() {
     try {
       const form = new FormData();
       form.append('file', file);
-      const res = await fetch('/api/v1/upload-and-analyze', {
-        method: 'POST', body: form, signal: AbortSignal.timeout(60_000),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? '서버 오류');
-      }
-      const data: AnalyzedResult = await res.json();
+      // 타임아웃을 120초로 늘리고 안전한 apiFormPost 함수 사용
+      const data = await apiFormPost<AnalyzedResult>('/upload-and-analyze', form, 120_000);
+
       setFiles(prev => {
         const updated = prev.map(f =>
           f.id === id ? { ...f, name: data.filename, detection: data.detection ?? null, loading: false, uploadError: false, analyzed: data } : f
         );
-        saveFiles(updated);
         return updated;
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : '알 수 없는 오류';
       console.error('[파일 업로드 실패]', msg);
+      setStep1ErrMsg(`파일 업로드 중 오류가 발생했습니다: ${msg}`);
+      setStep1Phase('error');
       setFiles(prev => {
         const updated = prev.map(f =>
           f.id === id ? { ...f, detection: detectFileType(file.name), loading: false, uploadError: true } : f
         );
-        saveFiles(updated);
         return updated;
       });
     }
@@ -307,17 +315,7 @@ export default function Step2Page() {
 
   function removeFile(id: string) {
     if (isAnalyzing) return;
-    setFiles(prev => { const u = prev.filter(f => f.id !== id); saveFiles(u); return u; });
-  }
-
-  function editFileType(id: string) {
-    const f = files.find(x => x.id === id);
-    if (!f) return;
-    const choice = prompt(`파일 유형:\n1. MSDS\n2. 제조공정도\n현재: ${f.userType ?? f.detection?.type}`);
-    if (!choice) return;
-    const t = choice === '1' || choice.toLowerCase().includes('msds') ? 'MSDS'
-      : choice === '2' || choice.toLowerCase().includes('공정') ? '제조공정도' : null;
-    if (t) setFiles(prev => prev.map(x => x.id === id ? { ...x, userType: t } : x));
+    setFiles(prev => prev.filter(f => f.id !== id));
   }
 
   // ── Step 1 ──
@@ -345,7 +343,6 @@ export default function Step2Page() {
 
     // 업로드 자체가 실패한 파일이 있으면 안내
     if (current.every(f => f.uploadError)) {
-      setStep1ErrMsg('API 서버에 연결할 수 없습니다. Express 서버(포트 3001)가 실행 중인지 확인해 주세요.');
       setStep1Phase('error');
       setIsAnalyzing(false);
       return;
@@ -370,6 +367,8 @@ export default function Step2Page() {
 
     setS1({ ...analyzed });
     setProductNameInput(analyzed.productName ?? '');
+    setManufacturerInput(analyzed.manufacturer ?? '');
+    setOriginInput(analyzed.origin ?? '');
     setS1Done(true);
     setStep1Phase('result');
 
@@ -384,12 +383,12 @@ export default function Step2Page() {
   }
 
   function proceedToStep2(s1Override?: S1State) {
-    const final = s1Override ?? { ...s1, productName: productNameInput };
+    const final = s1Override ?? { ...s1, productName: productNameInput, manufacturer: manufacturerInput, origin: originInput };
     setS1(final);
     setShowStep2(true);
     setTimeout(() => {
       step2CardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      runStep2(final, null);
+      runStep2(final);
     }, 300);
   }
 
@@ -408,13 +407,13 @@ export default function Step2Page() {
     setS2Rows(prev => prev.map((s, i) => i === idx ? 'done' : i === idx + 1 ? 'active' : s));
   }
 
-  async function runStep2(s1Src?: S1State | null, ftOverride?: string | null) {
+  async function runStep2(s1Src?: S1State | null) {
     const src = s1Src ?? s1 ?? {};
-    const override = ftOverride !== undefined ? ftOverride : foodTypeOverride;
-    setS2Rows(['active', 'idle', 'idle', 'idle', 'idle']);
+    setS2Rows(['active', 'idle', 'idle', 'idle']);
     setStep2Phase('loading');
     setS2Data(null);
-    setS4Data(null);
+    setLawBases([]);
+    setVerdictConfirmed(false);
 
     try {
       const step2Promise = apiPost<S2Data>('/step2', {
@@ -422,6 +421,8 @@ export default function Step2Page() {
         origin:         src.origin         ?? null,
         alcoholContent: src.alcoholContent ?? null,
         ingredients:    src.ingredients    ?? [],
+        processes:      (src as S1State & { processes?: Process[] }).processes ?? [],
+        userIsAlcohol,
       });
 
       await advanceS2Row(0);
@@ -430,24 +431,14 @@ export default function Step2Page() {
 
       const s2 = await step2Promise;
       setS2Data(s2);
-      setS2Rows(prev => prev.map((s, i) => i === 3 ? 'done' : i === 4 ? 'active' : s));
-      await new Promise(r => setTimeout(r, 300));
+      setLawBases(s2.lawBases ?? []);
+      setS2Rows(['done', 'done', 'done', 'done']);
+      await new Promise(r => setTimeout(r, 400));
 
-      if (!s2.results || s2.results.length === 0) {
+      if (!s2.lawBases || s2.lawBases.length === 0) {
         setStep2Phase('fallback');
         return;
       }
-
-      const selectedType = override ?? s2.guessedFoodType ?? null;
-      const s4 = await apiPost<S4Data>('/step4', {
-        selectedType,
-        s2FoodType:   s2.guessedFoodType ?? null,
-        s3FoodType:   null,
-        supabaseDocs: s2.supabaseDocs ?? [],
-      });
-      setS4Data(s4);
-      setS2Rows(['done', 'done', 'done', 'done', 'done']);
-      await new Promise(r => setTimeout(r, 400));
       setStep2Phase('result');
     } catch {
       setStep2ErrMsg('분석 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
@@ -455,21 +446,66 @@ export default function Step2Page() {
     }
   }
 
-  function handleManualFoodType() {
-    const v = manualFoodTypeInput.trim();
-    if (!v) { alert('식품유형을 입력해 주세요.'); return; }
-    setFoodTypeOverride(v);
-    setManualFoodTypeInput('');
-    runStep2(null, v);
+  function toggleLawBase(id: string) {
+    setLawBases(prev => prev.map(lb => lb.id === id ? { ...lb, selected: !lb.selected } : lb));
+    setIsVerdictStale(true);
+    setVerdictConfirmed(false);
+    setReVerdictErr('');
   }
 
-  function editFinal() {
-    const type = prompt('식품유형을 직접 입력하세요:', s4Data?.finalType);
-    if (type) {
-      setFoodTypeOverride(type);
-      setConfirmed(false);
-      runStep2(null, type);
+  async function reVerdict() {
+    if (!s2Data) return;
+    const selected = lawBases.filter(lb => lb.selected);
+    if (selected.length === 0) {
+      setReVerdictErr('최소 1개 이상의 법령을 선택해 주세요.');
+      return;
     }
+    setIsReVerdicting(true);
+    setReVerdictErr('');
+    try {
+      const result = await apiPost<{ verdict: Verdict }>('/step2-verdict', {
+        productName:    s1?.productName    ?? '',
+        isAlcohol:      s2Data.isAlcohol,
+        classification: s2Data.classification,
+        selectedLaws:   selected.map(lb => ({
+          law:         lb.law,
+          subLaw:      lb.subLaw,
+          subLawTitle: lb.subLawTitle,
+          summary:     lb.summary,
+        })),
+      });
+      setS2Data(prev => prev ? { ...prev, verdict: result.verdict } : prev);
+      setIsVerdictStale(false);
+    } catch {
+      setReVerdictErr('재판정 중 오류가 발생했습니다. 다시 시도해 주세요.');
+    } finally {
+      setIsReVerdicting(false);
+    }
+  }
+
+  function confirmVerdict() {
+    setVerdictConfirmed(true);
+  }
+
+  async function downloadPdf() {
+    if (!s2Data || !s1) return;
+    setIsDownloadingPdf(true);
+    try {
+      const resp = await fetch('/api/v1/report-html', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step1: s1, step2: { ...s2Data, lawBases } }),
+      });
+      const html = await resp.text();
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        setTimeout(() => win.print(), 600);
+      }
+    } catch { alert('PDF 생성 중 오류가 발생했습니다.'); }
+    finally { setIsDownloadingPdf(false); }
   }
 
   // ── Reset ──
@@ -477,10 +513,12 @@ export default function Step2Page() {
     if (n === 1) {
       setFiles([]); setS1(null); setIsAnalyzing(false);
       setStep1Phase('idle'); setShowStep2(false);
-      setConfirmed(false); setFoodTypeOverride(null);
-      localStorage.removeItem('samc_files');
+      setVerdictConfirmed(false); setLawBases([]);
+      setIsVerdictStale(false); setReVerdictErr('');
+      setUserIsAlcohol(null);
     } else if (n === 2) {
-      setS2Data(null); setS4Data(null); setConfirmed(false);
+      setS2Data(null); setLawBases([]); setVerdictConfirmed(false);
+      setIsVerdictStale(false); setReVerdictErr('');
       runStep2();
     }
   }
@@ -489,9 +527,9 @@ export default function Step2Page() {
     if (!confirm('모든 내용을 초기화하시겠습니까?')) return;
     setFiles([]); setS1(null); setIsAnalyzing(false);
     setStep1Phase('idle'); setShowStep2(false);
-    setConfirmed(false); setFoodTypeOverride(null);
-    setS2Data(null); setS4Data(null);
-    localStorage.removeItem('samc_files');
+    setVerdictConfirmed(false); setLawBases([]);
+    setIsVerdictStale(false); setReVerdictErr('');
+    setS2Data(null);
   }
 
   // ── Process diagram ──
@@ -554,9 +592,9 @@ export default function Step2Page() {
       <div className="top-bar">
         <span className="logo">SAMC</span>
         <div className="tab-nav">
-          {(['food-type', 'product-info', 'process-diagram'] as Tab[]).map(tab => (
+          {(['food-type', 'process-diagram'] as Tab[]).map(tab => (
             <button key={tab} className={`tab-btn${activeTab === tab ? ' active' : ''}`} onClick={() => setActiveTab(tab)}>
-              {tab === 'food-type' ? '식품유형' : tab === 'product-info' ? '제품정보' : '공정도 분석'}
+              {tab === 'food-type' ? '식품유형' : '공정도 분석'}
             </button>
           ))}
         </div>
@@ -597,9 +635,6 @@ export default function Step2Page() {
           {/* 파일 목록 */}
           <div className="file-list">
             {files.map(f => {
-              const conf = f.detection?.confidence ?? 0;
-              const type = f.userType ?? f.detection?.type ?? '판별 중';
-              const isLow = conf < 75;
               return (
                 <div key={f.id} className="file-item">
                   <div style={{ flex: 1 }}>
@@ -610,10 +645,7 @@ export default function Step2Page() {
                         ? <span className="badge badge-gray">판별 중…</span>
                         : f.uploadError
                           ? <span className="badge badge-red">⚠ 업로드 실패 — 서버 연결 확인 필요</span>
-                          : <>
-                              <span className={`badge ${isLow ? 'badge-orange' : 'badge-blue'}`}>{type} {conf}%</span>
-                              {isLow && <button className="btn btn-ghost btn-sm" onClick={() => editFileType(f.id)}>수정</button>}
-                            </>
+                          : null
                       }
                     </div>
                   </div>
@@ -624,9 +656,6 @@ export default function Step2Page() {
             })}
           </div>
 
-          {files.length === 1 && (
-            <div className="alert alert-warn">⚠ 1개 파일 기반 분석입니다. 추가 파일 업로드 시 분석 정확도가 높아집니다.</div>
-          )}
           {isAnalyzing && step1Phase === 'loading' && (
             <div className="alert alert-info">🔒 분석 중에는 파일을 추가할 수 없습니다.</div>
           )}
@@ -656,11 +685,13 @@ export default function Step2Page() {
                   <span className="f-label">제품명</span>
                   <span><input className="editable-input" value={productNameInput} onChange={e => setProductNameInput(e.target.value)} /></span>
                   <span className="f-label">제조사</span>
-                  <span className="f-value">{s1?.manufacturer ?? '정보 없음'}</span>
+                  <span><input className="editable-input" value={manufacturerInput} onChange={e => setManufacturerInput(e.target.value)} placeholder="정보 없음" /></span>
                   <span className="f-label">원산지</span>
-                  <span className="f-value">{s1?.origin ?? '정보 없음'}</span>
+                  <span><input className="editable-input" value={originInput} onChange={e => setOriginInput(e.target.value)} placeholder="정보 없음" /></span>
                 </div>
               </div>
+              {/* 주류 여부 체크박스 */}
+              <AlcoholCheckbox value={userIsAlcohol} onChange={setUserIsAlcohol} />
               <button className="btn btn-primary btn-full" onClick={() => proceedToStep2()}>
                 다음 단계 — 법령 검색 →
               </button>
@@ -680,6 +711,8 @@ export default function Step2Page() {
                 <input type="text" value={manualProductName} onChange={e => setManualProductName(e.target.value)} placeholder="제품명 (선택사항)" />
                 <input type="text" value={manualOrigin} onChange={e => setManualOrigin(e.target.value)} placeholder="원산지 (선택사항)" />
               </div>
+              {/* 주류 여부 체크박스 */}
+              <AlcoholCheckbox value={userIsAlcohol} onChange={setUserIsAlcohol} />
               <div className="flex gap-8">
                 {step1Phase === 'error' && (
                   <button className="btn btn-ghost btn-full" onClick={startAnalysis}>재시도</button>
@@ -697,12 +730,12 @@ export default function Step2Page() {
             <div className="card-header">
               <div>
                 <div className="step-label">STEP 2</div>
-                <div className="step-title">법령 검색 &amp; 결과 확정</div>
+                <div className="step-title">식품유형 분류 &amp; 법령 근거</div>
               </div>
               <button className="btn btn-ghost btn-sm" onClick={() => resetStep(2)}>초기화</button>
             </div>
 
-            {/* 로딩 */}
+            {/* ── 로딩 ── */}
             {step2Phase === 'loading' && (
               <div>
                 {S2_LABELS.map((label, i) => (
@@ -711,167 +744,198 @@ export default function Step2Page() {
               </div>
             )}
 
-            {/* 결과 */}
-            {step2Phase === 'result' && s2Data && s4Data && (
+            {/* ── 결과 ── */}
+            {step2Phase === 'result' && s2Data && (
               <div>
-                <div className="step-label" style={{ marginBottom: 6 }}>변환된 검색 쿼리</div>
-                <div className="query-pill">{s2Data.query}</div>
-                <div className="coverage-note">⚡ 현재 지원 범위: 주류 · 일반가공식품 (벡터 35개 기준)</div>
+                {/* 섹션 1: 주류 여부 판단 */}
+                <div className="step-label" style={{ marginBottom: 6 }}>주류 여부 판단</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <span style={{
+                    display: 'inline-block', padding: '3px 12px', borderRadius: 12,
+                    fontWeight: 700, fontSize: 13,
+                    background: s2Data.isAlcohol ? '#fde8e8' : '#e8f4fd',
+                    color: s2Data.isAlcohol ? '#c0392b' : '#1a6b3a',
+                  }}>
+                    {s2Data.isAlcohol ? '주류' : '일반식품'}
+                  </span>
+                </div>
+                <ul style={{ paddingLeft: 18, marginBottom: 14, fontSize: 12, color: '#444', lineHeight: 1.8 }}>
+                  {(s2Data.alcoholBasis ?? []).map((b, i) => <li key={i}>{b}</li>)}
+                </ul>
 
-                {s2Data.supabaseUsed && (
-                  <div className="alert alert-info" style={{ marginBottom: 10 }}>
-                    ℹ Pinecone 결과 부족 → Supabase 식품유형 DB 병행 조회
+                <div className="section-divider" />
+
+                {/* 섹션 2: 3단계 분류 */}
+                <div className="step-label" style={{ marginBottom: 8 }}>식품유형 3단계 분류</div>
+                {(() => {
+                  const cls = s2Data.classification;
+                  return (
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                      {[
+                        { label: '대분류', value: cls?.large },
+                        { label: '중분류', value: cls?.medium },
+                        { label: '소분류', value: cls?.small },
+                      ].map((c, i) => (
+                        <div key={i} style={{ flex: 1, border: '1px solid #dde3f0', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{c.label}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#1a3a6b' }}>{c.value || '—'}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                <div className="section-divider" />
+
+                {/* 섹션 3: 법령 근거 체크박스 */}
+                <div className="step-label" style={{ marginBottom: 8 }}>적용 법령 근거 선택</div>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>
+                  T1·T2 법령이 기본 선택됩니다. 체크박스로 포함 여부를 조정한 뒤 판정을 확정하세요.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                  {lawBases.map(lb => {
+                    const tierColor = lb.tier === 1 ? { bg: '#e8f0fe', color: '#1a73e8' }
+                      : lb.tier === 2 ? { bg: '#e6f4ea', color: '#1e8e3e' }
+                      : { bg: '#f5f5f5', color: '#666' };
+                    return (
+                      <div key={lb.id} style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 10,
+                        padding: '10px 12px', borderRadius: 8,
+                        border: `1px solid ${lb.selected ? '#bcd0f5' : '#e5e5e5'}`,
+                        background: lb.selected ? '#f7f9fc' : '#fafafa',
+                        opacity: lb.selected ? 1 : 0.65,
+                      }}>
+                        <input type="checkbox" checked={lb.selected} onChange={() => toggleLawBase(lb.id)}
+                          style={{ marginTop: 3, cursor: 'pointer', flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 4, background: tierColor.bg, color: tierColor.color }}>
+                              T{lb.tier}
+                            </span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: '#1a3a6b' }}>
+                              {lb.law}{lb.subLaw ? ` ${lb.subLaw}` : ''}
+                            </span>
+                            {lb.subLawTitle && (
+                              <span style={{ fontSize: 11, color: '#888' }}>— {lb.subLawTitle}</span>
+                            )}
+                            {lb.foodTypeName && (
+                              <span className="badge badge-blue" style={{ fontSize: 10 }}>{lb.foodTypeName}</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6, marginBottom: 4 }}>{lb.summary}</div>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {lb.effectiveDate && (
+                              <span style={{ fontSize: 11, color: '#888' }}>시행: {lb.effectiveDate}</span>
+                            )}
+                            {lb.lawNumber && (
+                              <span style={{ fontSize: 11, color: '#888' }}>{lb.lawNumber}</span>
+                            )}
+                            {lb.article && (
+                              <span style={{ fontSize: 11, color: '#888' }}>조항: {lb.article}</span>
+                            )}
+                            {lb.fullText && (
+                              <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 8px' }}
+                                onClick={() => setModal({ title: `${lb.law}${lb.subLaw ? ' ' + lb.subLaw : ''}`, body: lb.fullText })}>
+                                원문 보기
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="section-divider" />
+
+                {/* 섹션 3.5: 재판정 버튼 영역 */}
+                {reVerdictErr && (
+                  <div className="alert alert-error" style={{ marginBottom: 8 }}>{reVerdictErr}</div>
+                )}
+                <button
+                  className="btn btn-primary btn-full"
+                  onClick={reVerdict}
+                  disabled={isReVerdicting || !isVerdictStale}
+                  style={{ marginBottom: 16, opacity: isVerdictStale ? 1 : 0.45 }}
+                >
+                  {isReVerdicting
+                    ? <><Spinner /> 재판정 중...</>
+                    : isVerdictStale
+                      ? '선택 법령으로 재판정'
+                      : '재판정 완료 (법령 변경 시 자동 활성화)'}
+                </button>
+
+                <div className="section-divider" />
+
+                {/* 섹션 4: 판정 결과 */}
+                <div className="step-label" style={{ marginBottom: 8 }}>AI 판정 결과</div>
+
+                {/* stale 경고 배너 */}
+                {isVerdictStale && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 12px', borderRadius: 8, marginBottom: 10,
+                    background: '#fff8e1', border: '1px solid #f9a825', fontSize: 12, color: '#795548',
+                  }}>
+                    ⚠ 법령 선택이 변경되었습니다. 위 버튼을 눌러 재판정을 실행하세요.
                   </div>
                 )}
 
-                {/* ── 3섹션 법령 정보 ── */}
-                {s2Data.sections && (() => {
-                  const sec = s2Data.sections!;
-                  // 관련 법령명으로 fullText 검색 헬퍼
-                  const findFullText = (lawName: string | null) => {
-                    if (!lawName) return null;
-                    return s2Data.results.find(r => r.law === lawName)?.fullText ?? null;
-                  };
-
-                  const sectionDefs = [
-                    {
-                      icon: '🧪',
-                      title: '함량 및 성분',
-                      text: sec.contentIngredients.text,
-                      relatedLaw: sec.contentIngredients.relatedLaw,
-                      fullText: findFullText(sec.contentIngredients.relatedLaw),
-                      extra: null,
-                    },
-                    {
-                      icon: '🧴',
-                      title: '기타 첨가물',
-                      text: sec.additives.text,
-                      relatedLaw: sec.additives.relatedLaw,
-                      fullText: findFullText(sec.additives.relatedLaw),
-                      extra: sec.additives.list.length > 0
-                        ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-                            {sec.additives.list.map((a, i) => (
-                              <span key={i} style={{ fontSize: 11, background: '#f0f3fa', borderRadius: 4, padding: '2px 7px', color: '#4a5e8a' }}>{a}</span>
-                            ))}
-                          </div>
-                        : null,
-                    },
-                    {
-                      icon: '⚠',
-                      title: '특이사항',
-                      text: sec.specialNotes.text,
-                      relatedLaw: sec.specialNotes.relatedLaw,
-                      fullText: findFullText(sec.specialNotes.relatedLaw),
-                      extra: null,
-                    },
-                  ];
-
+                {(() => {
+                  const v = s2Data.verdict;
+                  const confLabel = { high: '높음', medium: '보통', low: '낮음' }[v?.confidence ?? 'medium'];
+                  const confColor = { high: '#1e8e3e', medium: '#f57c00', low: '#c0392b' }[v?.confidence ?? 'medium'];
                   return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-                      {sectionDefs.map((s, i) => (
-                        <div key={i} className="law-card" style={{ marginBottom: 0 }}>
-                          <div className="law-card-header" style={{ marginBottom: 6 }}>
-                            <span className="law-name">{s.icon} {s.title}</span>
-                            {s.relatedLaw && (
-                              <span className="badge badge-blue" style={{ fontSize: 10 }}>📋 {s.relatedLaw}</span>
-                            )}
-                          </div>
-                          {s.extra}
-                          <div className="law-summary">{s.text}</div>
-                          {s.fullText && (
-                            <div style={{ marginTop: 8 }}>
-                              <button
-                                className="btn btn-ghost btn-sm"
-                                onClick={() => setModal({ title: s.relatedLaw ?? s.title, body: s.fullText! })}
-                              >
-                                원문 보기
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-
-                      {/* ── 관련 법령 전체 목록 ── */}
-                      {s2Data.results.length > 0 && (
-                        <div className="law-card" style={{ marginBottom: 0 }}>
-                          <div className="law-name" style={{ marginBottom: 10 }}>📚 관련 법령 전체 목록</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                            {s2Data.results.map((r, i) =>
-                              r.fullText
-                                ? (
-                                  <button
-                                    key={i}
-                                    className="btn btn-ghost btn-sm"
-                                    style={{ fontSize: 12 }}
-                                    onClick={() => setModal({ title: r.law, body: r.fullText })}
-                                  >
-                                    {r.law}
-                                  </button>
-                                ) : (
-                                  <span
-                                    key={i}
-                                    style={{ fontSize: 12, padding: '4px 10px', border: '1px solid #dde3f0', borderRadius: 6, color: '#aab' }}
-                                  >
-                                    {r.law}
-                                  </span>
-                                )
-                            )}
-                          </div>
-                        </div>
+                    <div className="verdict-box" style={{ marginBottom: 14, opacity: isVerdictStale ? 0.55 : 1 }}>
+                      <div className="verdict-type">{v?.foodType || '—'}</div>
+                      <div className="verdict-sub" style={{ marginBottom: 6 }}>
+                        근거 법령: {v?.lawRef || '—'}
+                        &nbsp;&nbsp;|&nbsp;&nbsp;신뢰도: <span style={{ color: confColor, fontWeight: 700 }}>{confLabel}</span>
+                      </div>
+                      {v?.reasoning && (
+                        <div style={{ fontSize: 13, color: '#444', lineHeight: 1.7 }}>{v.reasoning}</div>
                       )}
                     </div>
                   );
                 })()}
 
-                <div className="law-meta mt-8">법령 검색: 후보 {s2Data.topKFetch}건 → {s2Data.topKShown}건 매칭</div>
-                <div className="section-divider" />
-
-                {/* 최종 결과 */}
-                <div className="verdict-box">
-                  <div className="verdict-type">{s4Data.finalType}</div>
-                  <div className="verdict-sub">확정 시각: {s4Data.confirmedAt}</div>
-                  {s4Data.summary && (
-                    <div style={{ fontSize: 13, color: '#5a6e9e', marginTop: 8, lineHeight: 1.6 }}>{s4Data.summary}</div>
-                  )}
-                </div>
-
-                <div className="step-label" style={{ marginBottom: 10 }}>필요 서류</div>
-                {(s4Data.requiredDocs ?? []).map((d, i) => (
-                  <div key={i} className="doc-item">
-                    <span style={{ fontSize: 20 }}>📄</span>
-                    <div>
-                      <div className="doc-name">{d.name}</div>
-                      <div className="doc-desc">{d.desc}</div>
-                    </div>
+                {/* 섹션 5: 판정 확정 + PDF */}
+                {!verdictConfirmed ? (
+                  <div className="flex gap-8 mt-12">
+                    <button
+                      className="btn btn-primary flex-1"
+                      onClick={confirmVerdict}
+                      disabled={isVerdictStale}
+                      title={isVerdictStale ? '재판정을 먼저 실행하세요.' : ''}
+                    >
+                      ✓ 판정 확정
+                    </button>
                   </div>
-                ))}
-
-                {!confirmed
-                  ? (
-                    <div className="flex gap-8 mt-12">
-                      <button className="btn btn-primary flex-1" onClick={() => setConfirmed(true)}>✓ 확인</button>
-                      <button className="btn btn-outline flex-1" onClick={editFinal}>✎ 유형 수정</button>
-                    </div>
-                  ) : (
-                    <div className="confirmed-badge">✅ 식품유형이 확정되었습니다.</div>
-                  )
-                }
+                ) : (
+                  <div>
+                    <div className="confirmed-badge">✅ 판정이 확정되었습니다.</div>
+                    <button
+                      className="btn btn-outline btn-full mt-12"
+                      onClick={downloadPdf}
+                      disabled={isDownloadingPdf}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    >
+                      {isDownloadingPdf ? <><Spinner /> PDF 생성 중...</> : '⬇ 판정 결과 PDF 다운로드'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Fallback */}
+            {/* ── Fallback ── */}
             {step2Phase === 'fallback' && (
               <div>
-                <div className="alert alert-warn">관련 법령을 찾지 못했습니다. 식품유형을 직접 입력해 주세요.</div>
-                <div className="manual-form mt-8">
-                  <input type="text" value={manualFoodTypeInput} onChange={e => setManualFoodTypeInput(e.target.value)}
-                    placeholder="식품유형 직접 입력 (예: 일반증류주)" />
-                  <button className="btn btn-primary btn-full" onClick={handleManualFoodType}>입력 완료 →</button>
-                </div>
+                <div className="alert alert-warn">관련 법령을 찾지 못했습니다. 다시 시도하거나 파일을 확인해 주세요.</div>
+                <button className="btn btn-ghost btn-full mt-8" onClick={() => runStep2()}>재시도</button>
               </div>
             )}
 
-            {/* 오류 */}
+            {/* ── 오류 ── */}
             {step2Phase === 'error' && (
               <div>
                 <div className="alert alert-error">{step2ErrMsg}</div>
@@ -880,17 +944,6 @@ export default function Step2Page() {
             )}
           </div>
         )}
-      </div>
-
-      {/* ════════════════════
-          TAB 2 — 제품정보
-      ════════════════════ */}
-      <div className={`page${activeTab === 'product-info' ? ' active' : ''}`}>
-        <div className="card" style={{ textAlign: 'center', padding: '60px 24px' }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>🛠</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#1a2340', marginBottom: 8 }}>제품정보</div>
-          <div style={{ fontSize: 14, color: '#7c8db5' }}>추후 패치 예정</div>
-        </div>
       </div>
 
       {/* ════════════════════

@@ -6,7 +6,11 @@
       "law": "주세법 시행령",
       "category": "alcohol",
       "chunk_index": 3,
-      "char_count": 344
+      "char_count": 344,
+      "effective_date": "2024-01-01",
+      "law_number": "대통령령 제34092호",
+      "sub_law": "별표3",
+      "sub_law_title": "주류 원료 사용량 및 여과방법 기준"
     }
   },
   {
@@ -16,7 +20,11 @@
       "law": "주세법 시행령",
       "category": "alcohol",
       "chunk_index": 5,
-      "char_count": 462
+      "char_count": 462,
+      "effective_date": "2024-01-01",
+      "law_number": "대통령령 제34092호",
+      "sub_law": "별표3",
+      "sub_law_title": "주류 원료 사용량 및 여과방법 기준"
     }
   },
   {
@@ -26,7 +34,11 @@
       "law": "주세법 시행령",
       "category": "alcohol",
       "chunk_index": 6,
-      "char_count": 205
+      "char_count": 205,
+      "effective_date": "2024-01-01",
+      "law_number": "대통령령 제34092호",
+      "sub_law": "별표3",
+      "sub_law_title": "주류 원료 사용량 및 여과방법 기준"
     }
   },
   {
@@ -36,7 +48,11 @@
       "law": "주세법 시행령",
       "category": "alcohol",
       "chunk_index": 7,
-      "char_count": 2296
+      "char_count": 2296,
+      "effective_date": "2024-01-01",
+      "law_number": "대통령령 제34092호",
+      "sub_law": "별표3",
+      "sub_law_title": "주류 원료 사용량 및 여과방법 기준"
     }
   },
   {
@@ -46,7 +62,11 @@
       "law": "주세법 시행령",
       "category": "alcohol",
       "chunk_index": 11,
-      "char_count": 123
+      "char_count": 123,
+      "effective_date": "2024-01-01",
+      "law_number": "대통령령 제34092호",
+      "sub_law": "별표3",
+      "sub_law_title": "주류 원료 사용량 및 여과방법 기준"
     }
   },
   {
@@ -56,7 +76,11 @@
       "law": "주세법 시행령",
       "category": "alcohol",
       "chunk_index": 12,
-      "char_count": 371
+      "char_count": 371,
+      "effective_date": "2024-01-01",
+      "law_number": "대통령령 제34092호",
+      "sub_law": "별표3",
+      "sub_law_title": "주류 원료 사용량 및 여과방법 기준"
     }
   },
   {
@@ -66,7 +90,11 @@
       "law": "주세법 시행령",
       "category": "alcohol",
       "chunk_index": 14,
-      "char_count": 111
+      "char_count": 111,
+      "effective_date": "2024-01-01",
+      "law_number": "대통령령 제34092호",
+      "sub_law": "별표3",
+      "sub_law_title": "주류 원료 사용량 및 여과방법 기준"
     }
   },
   {
@@ -76,7 +104,11 @@
       "law": "주세법 시행령",
       "category": "alcohol",
       "chunk_index": 15,
-      "char_count": 103
+      "char_count": 103,
+      "effective_date": "2024-01-01",
+      "law_number": "대통령령 제34092호",
+      "sub_law": "별표3",
+      "sub_law_title": "주류 원료 사용량 및 여과방법 기준"
     }
   }
 ]

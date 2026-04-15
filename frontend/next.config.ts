@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // 파일 업로드 등 대용량 요청을 위해 body 크기 제한 해제
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '25mb',
+    },
+  },
 };
 
 export default nextConfig;
