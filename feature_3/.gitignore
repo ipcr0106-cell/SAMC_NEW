@@ -1,8 +1,8 @@
 # Environment variables (절대 커밋 금지)
-.env
-.env.local
-frontend/.env
-frontend/.env.local
+.env*
+frontend/.env*
+!.env.example
+!frontend/.env.local.example
 
 # Python
 __pycache__/
