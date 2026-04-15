@@ -106,6 +106,41 @@ export interface LabelIssue {
   severity: "must_fix" | "review_needed";
 }
 
+export interface ImageIssue {
+  description: string;    // 이미지 요소 설명
+  location?: string;      // 라벨 상 위치
+  violation_type: string; // ①~㉖ 위반 유형
+  law_ref: string;        // 근거 법령
+  reasoning: string;      // 위반 판단 근거 (사용자에게 보이는 설명)
+  severity: "must_fix" | "review_needed";
+  recommendation?: string; // 수정 권고
+  // confirmed: 확정 위반 유형 분석 결과
+  // suggested: 법령 개정으로 추가된 낮은 신뢰도 항목 — AI 불확실, 사용자 직접 확인 권고
+  review_level?: "confirmed" | "suggested";
+}
+
+export interface ValidationConflict {
+  law_refs: string[];
+  description: string;
+  reasoning: string;
+  recommendation: string;
+}
+
+export interface ValidationDependency {
+  selected_law_ref: string;
+  required_law_ref: string;
+  description: string;
+  reasoning: string;
+}
+
+export interface ValidationResult {
+  is_valid: boolean;
+  conflicts: ValidationConflict[];
+  dependencies: ValidationDependency[];
+  applied_principles?: string;
+  summary: string;
+}
+
 export interface CrossCheckItem {
   field: "product_name" | "ingredients" | "content_volume" | "origin" | "manufacturer";
   label_value: string;    // 라벨에 표기된 값
@@ -117,6 +152,7 @@ export interface CrossCheckItem {
 export interface Feature4Result {
   overall: "pass" | "fail" | "review_needed";
   issues: LabelIssue[];
+  image_issues?: ImageIssue[];
   cross_check: CrossCheckItem[];
   translation_note?: string;  // 다국어 번역 적용 시 표시
   label_image_url?: string;   // Supabase Storage에 저장된 라벨 이미지 경로
