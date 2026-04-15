@@ -23,7 +23,7 @@ from routers.admin_law_update import router as admin_law_update_router
 from routers.feature1 import router as feature1_router
 from routers.db_manager import router as db_manager_router
 from routers.feature2 import router as feature2_router
-from routers.f2_required_docs import router as f2_required_docs_router
+from routers.feature3 import router as feature3_router
 
 
 # ── DB 커넥션 풀 lifespan 훅 ──────────────────────────────
@@ -80,7 +80,7 @@ app.include_router(admin_law_update_router) # 통합 법령 업데이트
 app.include_router(feature1_router)         # F1: 수입 가능 판정
 app.include_router(db_manager_router)       # F1: DB 관리 CRUD
 app.include_router(feature2_router)         # F2: 식품유형 분류
-app.include_router(f2_required_docs_router) # F2: 식품유형 기반 필요서류 조회 (F3 stub)
+app.include_router(feature3_router)         # F3: 수입 필요서류 안내
 
 
 @app.get("/health", tags=["system"])

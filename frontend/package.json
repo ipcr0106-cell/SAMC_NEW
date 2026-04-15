@@ -10,11 +10,13 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@pinecone-database/pinecone": "^7.2.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.12",
     "axios": "^1.15.0",
     "lucide-react": "^0.468.0",
     "next": "^14.2.21",
+    "openai": "^6.34.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

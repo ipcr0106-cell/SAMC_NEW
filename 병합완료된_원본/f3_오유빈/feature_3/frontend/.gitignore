@@ -1,0 +1,67 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+
+# 대용량 데이터 — 필요 시 주석 해제
+# data/impfood_excels/*.xlsx    # 실측 82만건 엑셀 (크기 큼, 재현용)
+# data/법령원본/                # 법령 PDF 53MB (검증용 — 주석 유지 권장)
+
+# 테스트·보고서 생성물
+scripts/test_8928_detailed_report.md
+scripts/verify_*_report.md
+scripts/report_by_category.md
+scripts/impfood_samples.json                     # 370MB 중간 산출물 (parse_impfood.py로 재생성)
+# scripts/category_samples.json                  # 2.3MB — 커밋 OK (8,928조합 대표, 검증 기준)
+# scripts/category_summary.json                  # 104KB — 커밋 OK
+scripts/audit_law_coverage_report.md
