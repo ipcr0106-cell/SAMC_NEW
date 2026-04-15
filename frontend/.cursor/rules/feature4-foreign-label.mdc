@@ -50,7 +50,7 @@ features/feature4/
 직접 가져오지 않고 `types/pipeline.ts`에 정의된 타입으로 props 받기.
 
 ```typescript
-// 기능4가 받는 입력 (pipeline_steps 테이블에서 조회)
+// 기능4가 받는 입력 (f5_pipeline_steps 테이블에서 조회)
 import { Feature1Result, Feature2Result } from "@/types/pipeline";
 ```
 

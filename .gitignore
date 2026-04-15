@@ -1,26 +1,54 @@
-# 환경변수 (절대 커밋 금지)
+# ─── 환경변수 (절대 커밋 금지) ───────────────────────────────────────
 .env
 .env.local
+.env.*.local
 **/.env
 **/.env.local
+**/.env.*.local
 
-# Python
+# ─── Python ──────────────────────────────────────────────────────────
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *.pyo
+*.pyd
+*.so
 .venv/
 venv/
+backend/venv/
 *.egg-info/
+dist/
+build/
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
 
-# Node.js
+# ─── Node.js / Next.js ───────────────────────────────────────────────
 node_modules/
+**/node_modules/
 .next/
 .turbo/
+out/
+frontend/dist/
+*.tsbuildinfo
+.eslintcache
 
-# 개발 도구
+# ─── 개발 도구 ────────────────────────────────────────────────────────
 .bkit/
+.cursor/
+.vscode/settings.json
+.idea/
 
-# 기타
+# ─── OS / 시스템 ──────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
 *.log
+
+# ─── 기타 ────────────────────────────────────────────────────────────
+*.bak
+*.swp
+*.tmp

@@ -40,7 +40,7 @@ SAMC 프로젝트 대화 기록
 
 [갭 4] INS/CAS 번호 기반 성분 매칭 없음 🟠
 - 설문 2차 D3: 라벨 성분명 ≠ 법령 등재명일 때 INS/CAS로 매칭
-- ingredient_list, material_codes 테이블에 관련 컬럼 없음
+- f5_ingredient_list, material_codes 테이블에 관련 컬럼 없음
 
 [갭 5] 재수입 케이스 재사용 기능 없음 🟡
 - 설문 2차 H2: 재수입 시 이전 결과 참고 후 변경사항만 확인
@@ -68,7 +68,7 @@ SAMC 프로젝트 대화 기록
 
 ▣ 활용 방안:
 - kordoc으로 HWPX 파싱 → 정규식(INS:\s*(\d+), CAS No\.\s*([\d-]+))으로 추출
-- ingredient_list 테이블의 ins_number, cas_number 컬럼에 저장
+- f5_ingredient_list 테이블의 ins_number, cas_number 컬럼에 저장
 - 보조 소스: Codex Alimentarius CXG 36 (FAO 사이트 무료 다운로드)
 
 ----------------------------------------------------------------
@@ -103,11 +103,11 @@ SAMC 프로젝트 대화 기록
 3. 파일 트리 (backend services): step1→원재료, step2→식품유형, step_a/step_b 추가
 4. DB 스키마:
    - cases: parent_case_id 추가 (재수입 지원)
-   - pipeline_steps: step_number(INTEGER) → step_key(TEXT) 변경 (A,B 수용)
-   - thresholds: compound_group, is_compound_limit 추가
-   - ingredient_list: ins_number, cas_number, aliases 추가
+   - f5_pipeline_steps: step_number(INTEGER) → step_key(TEXT) 변경 (A,B 수용)
+   - f5_thresholds: compound_group, is_compound_limit 추가
+   - f5_ingredient_list: ins_number, cas_number, aliases 추가
    - material_codes: ins_number 추가
-   - required_documents 테이블 신규 생성
+   - f5_required_documents 테이블 신규 생성
    - 인덱스 보강 (INS/CAS/compound_group)
 5. API 3-3: 8단계 순서 명시, STEP B 업로드 엔드포인트, SSE 이벤트 예시 업데이트
 6. 섹션 4 구현명세:
@@ -121,10 +121,10 @@ SAMC 프로젝트 대화 기록
 개발계획서_쉬운설명.md 수정 내역:
 1. 헤더: v5 반영
 2. DB 표 목록: 13개 → 14개
-   - ③ pipeline_steps: 8단계로 설명 변경
-   - ④ thresholds: compound_group 설명 추가
-   - ⑦ ingredient_list: INS/CAS 컬럼 설명 추가
-   - ⑭ required_documents 신규 추가
+   - ③ f5_pipeline_steps: 8단계로 설명 변경
+   - ④ f5_thresholds: compound_group 설명 추가
+   - ⑦ f5_ingredient_list: INS/CAS 컬럼 설명 추가
+   - ⑭ f5_required_documents 신규 추가
 3. API 섹션: 6단계 → 8단계, 재수입 기능 추가
 4. 파이프라인 상세: 순서 변경 안내, STEP1/2 내용 재작성, STEP A/B 신규, STEP3 합산 추가
 
@@ -254,7 +254,7 @@ SAMC 프로젝트 대화 기록 (2차 — 같은 날 추가)
   [DB 스키마]
   - process_codes, material_codes 테이블 제거 (주석으로 제거 이유 명시)
   - 관련 인덱스 제거
-  - feedback_logs의 step_key → feature_key 컬럼명 변경
+  - f5_feedback_logs의 step_key → feature_key 컬럼명 변경
 
   [API]
   - /pipeline/step/{step_key} → /pipeline/feature/{feature_num}

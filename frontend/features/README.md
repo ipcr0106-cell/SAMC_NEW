@@ -27,7 +27,7 @@ features/{기능명}/
 ## 다른 기능 결과를 받는 방법
 
 파이프라인 결과는 `types/pipeline.ts`에 정의된 타입으로 통일됩니다.
-DB의 `pipeline_steps` 테이블에서 조회해서 사용하세요.
+DB의 `f5_pipeline_steps` 테이블에서 조회해서 사용하세요.
 
 ```typescript
 import type { Feature1Result, Feature2Result } from "@/types/pipeline";

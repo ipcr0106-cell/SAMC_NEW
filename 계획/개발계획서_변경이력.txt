@@ -40,7 +40,7 @@ SAMC 개발계획서 변경이력
     위치: STEP2(식품유형) 직후
     이유: 회사_요구사항.md 항목 2번에 명시된 기능이나 기존 계획에 완전 누락
     구현:
-      - required_documents 테이블 신규 생성
+      - f5_required_documents 테이블 신규 생성
       - DB_최신/6_가이드라인/수입신고시_제출하여야_하는_구비서류_목록(2026.2.5.).xlsx
         및 OEM수입식품관리, 동등성인정 자료를 DB에 정제하여 입력
       - 식품유형 + OEM여부 + 친환경인증여부 조합으로 필요서류 목록 자동 조회
@@ -66,15 +66,15 @@ SAMC 개발계획서 변경이력
 
   ── DB 스키마 변경 ───────────────────────────────────────────
 
-  [변경 4] ingredient_list 테이블 — 컬럼 추가
+  [변경 4] f5_ingredient_list 테이블 — 컬럼 추가
 
     추가 컬럼:
       ins_number TEXT           -- INS 번호 (예: "468")
       cas_number TEXT           -- CAS 번호 (예: "74811-65-7")
       aliases    TEXT[]         -- 동의어 배열
     인덱스:
-      CREATE INDEX idx_ingredient_list_ins ON ingredient_list(ins_number);
-      CREATE INDEX idx_ingredient_list_cas ON ingredient_list(cas_number);
+      CREATE INDEX idx_f5_ingredient_list_ins ON f5_ingredient_list(ins_number);
+      CREATE INDEX idx_f5_ingredient_list_cas ON f5_ingredient_list(cas_number);
     이유: 직원_설문_2차.pdf D3 — 라벨의 성분명과 법령 등재명 불일치 시
          INS/CAS 번호로 매칭하는 것이 실무 방식
     데이터 출처:
@@ -87,7 +87,7 @@ SAMC 개발계획서 변경이력
     추가 컬럼:
       ins_number TEXT           -- INS 번호
 
-  [변경 6] thresholds 테이블 — 복합 기준치 지원
+  [변경 6] f5_thresholds 테이블 — 복합 기준치 지원
 
     추가 컬럼:
       compound_group     TEXT            -- 그룹명 (예: "타르색소합산")
@@ -96,9 +96,9 @@ SAMC 개발계획서 변경이력
     이유: 직원_설문_2차.pdf F2 — 착색료 2종 이상 사용 시 합산 기준치 동시 확인 필요
          현재 계획은 개별 성분 1:1 비교만 있음
 
-  [변경 7] required_documents 테이블 — 신규 생성
+  [변경 7] f5_required_documents 테이블 — 신규 생성
 
-    CREATE TABLE required_documents (
+    CREATE TABLE f5_required_documents (
         id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         food_type     TEXT,
         condition     TEXT,       -- 'OEM', '친환경인증', '특정성분' 등
@@ -162,7 +162,7 @@ SAMC 개발계획서 변경이력
 
     backend/services/step_a_required_docs.py
     backend/services/step_b_foreign_label.py
-    backend/routers/db_manager.py  (required_documents CRUD 포함)
+    backend/routers/db_manager.py  (f5_required_documents CRUD 포함)
 
   [변경 13] 신규 파일 (frontend)
 
