@@ -16,8 +16,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
-PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX", "samc-law-index")
+PINECONE_API_KEY = os.getenv("F0_PINECONE_API_KEY", "")
+PINECONE_INDEX_NAME = os.getenv("F0_PINECONE_INDEX", "samc-law-index")
 
 
 @lru_cache(maxsize=1)

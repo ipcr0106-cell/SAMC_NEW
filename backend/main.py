@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routers.upload import router as upload_router
 from routers.cases import router as cases_router
+from routers.feature4 import router as feature4_router
+from routers.admin_laws import router as admin_laws_router
 
 app = FastAPI(
     title="SAMC 수입식품 검역 AI",
@@ -32,6 +34,8 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(upload_router)
 app.include_router(cases_router)
+app.include_router(feature4_router)      # F4: 수출국 표시사항 검토
+app.include_router(admin_laws_router)    # F4: 법령 관리 어드민
 
 
 @app.get("/health", tags=["system"])
