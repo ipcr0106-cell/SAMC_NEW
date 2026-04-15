@@ -38,21 +38,36 @@ router = APIRouter(prefix="/admin/law-update", tags=["admin-law-update"])
 LAW_FEATURE_MAP = {
     # ── F1 전용 ──
     "식품공전": {
-        "features": ["F1"],
+        "features": ["F1", "F2"],
         "tier": "고시",
         "description": "식품의 기준 및 규격 (별표1~3 포함)",
-        # F2 병합 시 → ["F1", "F2"]
     },
     "식품첨가물공전": {
-        "features": ["F1"],
+        "features": ["F1", "F2"],
         "tier": "고시",
         "description": "식품첨가물의 기준 및 규격",
-        # F3 병합 시 → ["F1", "F3"]
+        # F3 병합 시 → ["F1", "F2", "F3"]
     },
     "건강기능식품공전": {
         "features": ["F1"],
         "tier": "고시",
         "description": "건강기능식품의 기준 및 규격",
+        # F2에서 아직 미사용 — 아람 확인 후 F2 추가 가능
+    },
+    "식품유형 분류원칙": {
+        "features": ["F2"],
+        "tier": "고시",
+        "description": "식품공전 식품유형 분류원칙 (대/중/소분류 기준)",
+    },
+    "주세법 시행령": {
+        "features": ["F2"],
+        "tier": "시행령",
+        "description": "주류 분류 기준 (별표1, 별표3)",
+    },
+    "기구및용기포장공전": {
+        "features": ["F2"],
+        "tier": "고시",
+        "description": "기구 및 용기·포장의 기준 및 규격",
     },
 
     # ── F1 + F4 공통 ──

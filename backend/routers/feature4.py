@@ -820,6 +820,50 @@ def _validate_selection(
         }
 
 
+def _fetch_f1_result(supabase, case_id: str) -> dict | None:
+    """F1 수입판정 결과를 pipeline_steps(step_key='1')에서 조회.
+
+    PM이 임의로 추가한 파이프라인 연결입니다.
+    수정/삭제하고 싶으면 이 함수와 _run_analysis 내 호출부를 제거하면 됩니다.
+    """
+    try:
+        res = (
+            supabase.table("pipeline_steps")
+            .select("ai_result, final_result")
+            .eq("case_id", case_id)
+            .eq("step_key", "1")
+            .limit(1)
+            .execute()
+        )
+        if res.data:
+            return res.data[0].get("final_result") or res.data[0].get("ai_result")
+    except Exception:
+        pass
+    return None
+
+
+def _fetch_f2_result(supabase, case_id: str) -> dict | None:
+    """F2 식품유형 분류 결과를 pipeline_steps(step_key='2')에서 조회.
+
+    PM이 임의로 추가한 파이프라인 연결입니다.
+    수정/삭제하고 싶으면 이 함수와 _run_analysis 내 호출부를 제거하면 됩니다.
+    """
+    try:
+        res = (
+            supabase.table("pipeline_steps")
+            .select("ai_result, final_result")
+            .eq("case_id", case_id)
+            .eq("step_key", "2")
+            .limit(1)
+            .execute()
+        )
+        if res.data:
+            return res.data[0].get("final_result") or res.data[0].get("ai_result")
+    except Exception:
+        pass
+    return None
+
+
 def _run_analysis(req: AnalyzeRequest, clients: dict, case_id: str = "") -> dict:
     """핵심 분석 로직: 금지 표현 감지 + 라벨·서류 교차검증 + 다중 이미지 분석."""
 
@@ -834,6 +878,21 @@ def _run_analysis(req: AnalyzeRequest, clients: dict, case_id: str = "") -> dict
     label_text         = req.label_text
 
     if case_id:
+        # ── F2 → food_type 자동 보충 (PM 임의 연결) ──
+        if req.food_type == "미분류":
+            f2 = _fetch_f2_result(sb, case_id)
+            if f2 and f2.get("food_type"):
+                req.food_type = f2["food_type"]
+
+        # ── F1 → ingredients 자동 보충 (PM 임의 연결) ──
+        if not req.ingredients:
+            f1 = _fetch_f1_result(sb, case_id)
+            if f1:
+                f1_ingredients = f1.get("ingredients") or []
+                req.ingredients = [
+                    ing.get("name", "") for ing in f1_ingredients if ing.get("name")
+                ]
+
         # 회사 제출 서류 OCR → 교차검증용 서류 정보 보충
         if not any([doc_product_name, doc_content_volume, doc_origin, doc_manufacturer, doc_ingredients]):
             doc_ocr = _fetch_doc_ocr(sb, case_id)
