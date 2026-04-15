@@ -21,3 +21,5 @@ app.include_router(feature3.router)
 @app.get("/")
 def read_root():
     return {"message": "SAMC 백엔드 서버가 정상적으로 실행 중입니다!"}
+
+#수정 2026.04.15
