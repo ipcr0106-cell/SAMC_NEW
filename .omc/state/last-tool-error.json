@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"C:/GITHUB/SAMC_NEW\\\" && PYTHONIOENCODING=utf-8 python -c \\\"\\nimport json, urllib.request\\n\\ndef call(ingredients, food_type=None):\\n    body = {'ingredients': ingredients}\\n    if foo...",
+  "error": "Exit code 1\nTraceback (most recent call last):\r\n  File \"<string>\", line 21, in <module>\r\n  File \"<string>\", line 15, in call\r\n  File \"C:\\DEV\\Lib\\urllib\\request.py\", line 215, in urlopen\r\n    return opener.open(url, data, timeout)\r\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n  File \"C:\\DEV\\Lib\\urllib\\request.py\", line 521, in open\r\n    response = meth(req, response)\r\n               ^^^^^^^^^^^^^^^^^^^\r\n  File \"C:\\DEV\\Lib\\urllib\\request.py\", line 630, in http_response\r\n    response = self.parent.e...",
+  "timestamp": "2026-04-15T05:14:29.234Z",
+  "retry_count": 2
+}

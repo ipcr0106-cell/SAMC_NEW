@@ -1,0 +1,79 @@
+{
+  "updatedAt": "2026-04-15T04:31:58.278Z",
+  "missions": [
+    {
+      "id": "session:faa0e062-4728-4e29-99dd-bae6b066f082:none",
+      "source": "session",
+      "name": "none",
+      "objective": "Session mission",
+      "createdAt": "2026-04-15T02:48:01.065Z",
+      "updatedAt": "2026-04-15T04:31:58.278Z",
+      "status": "done",
+      "workerCount": 2,
+      "taskCounts": {
+        "total": 2,
+        "pending": 0,
+        "blocked": 0,
+        "inProgress": 0,
+        "completed": 2,
+        "failed": 0
+      },
+      "agents": [
+        {
+          "name": "code-reviewer:ae84aee",
+          "role": "code-reviewer",
+          "ownership": "ae84aee265740197a",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-04-15T02:51:35.499Z"
+        },
+        {
+          "name": "general-purpose:afecca1",
+          "role": "general-purpose",
+          "ownership": "afecca141cc8c978d",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-04-15T04:31:58.278Z"
+        }
+      ],
+      "timeline": [
+        {
+          "id": "session-start:ae84aee265740197a:2026-04-15T02:48:01.065Z",
+          "at": "2026-04-15T02:48:01.065Z",
+          "kind": "update",
+          "agent": "code-reviewer:ae84aee",
+          "detail": "started code-reviewer:ae84aee",
+          "sourceKey": "session-start:ae84aee265740197a"
+        },
+        {
+          "id": "session-stop:ae84aee265740197a:2026-04-15T02:51:35.499Z",
+          "at": "2026-04-15T02:51:35.499Z",
+          "kind": "completion",
+          "agent": "code-reviewer:ae84aee",
+          "detail": "completed",
+          "sourceKey": "session-stop:ae84aee265740197a"
+        },
+        {
+          "id": "session-start:afecca141cc8c978d:2026-04-15T04:30:29.926Z",
+          "at": "2026-04-15T04:30:29.926Z",
+          "kind": "update",
+          "agent": "general-purpose:afecca1",
+          "detail": "started general-purpose:afecca1",
+          "sourceKey": "session-start:afecca141cc8c978d"
+        },
+        {
+          "id": "session-stop:afecca141cc8c978d:2026-04-15T04:31:58.278Z",
+          "at": "2026-04-15T04:31:58.278Z",
+          "kind": "completion",
+          "agent": "general-purpose:afecca1",
+          "detail": "completed",
+          "sourceKey": "session-stop:afecca141cc8c978d"
+        }
+      ]
+    }
+  ]
+}

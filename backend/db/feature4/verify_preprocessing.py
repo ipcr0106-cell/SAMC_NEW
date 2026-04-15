@@ -2,6 +2,7 @@
 전처리 결과 검증 스크립트 — 실행 후 삭제해도 됨
 확인 항목: 조문 청킹, 줄넘김/페이지넘김, 표, 이미지
 """
+
 import re
 import sys
 from pathlib import Path
@@ -13,7 +14,7 @@ sys.stdout = open(_out_path, "w", encoding="utf-8")
 import pdfplumber
 
 BASE_DIR = Path(__file__).parent.parent.parent.parent
-LAW_DIR  = BASE_DIR / "DB_최신" / "5_행정규칙"
+LAW_DIR = BASE_DIR / "DB_최신" / "5_행정규칙"
 
 LAW_FILES = [
     "식품등의 표시기준(식품의약품안전처고시)(제2025-60호)(20250829).pdf",
@@ -25,7 +26,7 @@ LAW_FILES = [
 _HEADER_RE = re.compile(
     r"^- \d+ -$|^\d+$|^식품의약품안전처$|^식품의약품안전처 고시.*$"
     r"|^「.*」.*고시전문$|^\[시행 \d{{4}}\. \d+\. \d+\.\].*$|^법제처 \d+ 국가법령정보센터$",
-    re.MULTILINE
+    re.MULTILINE,
 )
 _INLINE_REF_RE = re.compile(
     r"^제\d+조(?:의\d+)?(?:제\d+항)?(?:제\d+호)?[,\.\s과와및ㆍ]*$"
@@ -41,9 +42,13 @@ def _merge_orphaned_refs(text: str) -> str:
     for line in lines:
         stripped = line.strip()
         is_inline = (
-            stripped and _INLINE_REF_RE.match(stripped)
-            and ("항" in stripped or "호" in stripped
-                 or (stripped and stripped[-1] in (",", ".", "과", "와", "및")))
+            stripped
+            and _INLINE_REF_RE.match(stripped)
+            and (
+                "항" in stripped
+                or "호" in stripped
+                or (stripped and stripped[-1] in (",", ".", "과", "와", "및"))
+            )
         )
         if result and is_inline:
             result[-1] = result[-1].rstrip() + " " + stripped
@@ -108,9 +113,9 @@ for fname in LAW_FILES:
     print(f"  총 페이지: {total_pages}")
 
     # ── 1. 조문 청킹 ──────────────────────────────────────
-    full_raw   = "\n".join(t for _, t in pages_text)
+    full_raw = "\n".join(t for _, t in pages_text)
     full_clean = clean_text(full_raw)
-    chunk_cnt  = count_chunks(full_clean)
+    chunk_cnt = count_chunks(full_clean)
 
     articles = _ARTICLE_RE.findall(full_clean)
     print(f"\n[1] 조문 청킹")
@@ -138,7 +143,9 @@ for fname in LAW_FILES:
     # ── 3. 표 처리 ────────────────────────────────────────
     print(f"\n[3] 표(Table) 감지")
     if tables_found:
-        print(f"  표 발견: {len(tables_found)}개 페이지에서 총 {sum(len(t) for _,t in tables_found)}개")
+        print(
+            f"  표 발견: {len(tables_found)}개 페이지에서 총 {sum(len(t) for _,t in tables_found)}개"
+        )
         # 첫 번째 표 미리보기
         first_page, first_tables = tables_found[0]
         t = first_tables[0]

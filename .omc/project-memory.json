@@ -1,0 +1,428 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1776214687993,
+  "projectRoot": "C:\\GITHUB\\SAMC_NEW",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "backend": {
+      "path": "backend",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1776214687942,
+      "keyFiles": []
+    },
+    "DB_최신": {
+      "path": "DB_최신",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1776214687943,
+      "keyFiles": []
+    },
+    "frontend": {
+      "path": "frontend",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1776214687944,
+      "keyFiles": []
+    },
+    "계획": {
+      "path": "계획",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1776214687945,
+      "keyFiles": [
+        "개발계획서.md",
+        "개발계획서_변경이력.txt",
+        "개발계획서_쉬운설명.md",
+        "수동_DB_패치_메뉴얼.md",
+        "팀_컨벤션_룰.md"
+      ]
+    },
+    "대화내용_정리": {
+      "path": "대화내용_정리",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1776214687946,
+      "keyFiles": [
+        "2026-04-10.txt"
+      ]
+    },
+    "목표": {
+      "path": "목표",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1776214687947,
+      "keyFiles": [
+        "기업_회의록.md",
+        "직원_설문_1차.pdf",
+        "직원_설문_2차.pdf",
+        "회사_요구사항.md"
+      ]
+    },
+    "테스트용_자료": {
+      "path": "테스트용_자료",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1776214687948,
+      "keyFiles": []
+    },
+    "frontend\\app": {
+      "path": "frontend\\app",
+      "purpose": "Application code",
+      "fileCount": 0,
+      "lastAccessed": 1776214687950,
+      "keyFiles": []
+    },
+    "frontend\\services": {
+      "path": "frontend\\services",
+      "purpose": "Business logic services",
+      "fileCount": 1,
+      "lastAccessed": 1776214687952,
+      "keyFiles": [
+        "apiClient.ts"
+      ]
+    },
+    "frontend\\types": {
+      "path": "frontend\\types",
+      "purpose": "Type definitions",
+      "fileCount": 3,
+      "lastAccessed": 1776214687953,
+      "keyFiles": [
+        "api.ts",
+        "case.ts",
+        "pipeline.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "backend\\utils\\unit_converter.py",
+      "accessCount": 9,
+      "lastAccessed": 1776229439343,
+      "type": "file"
+    },
+    {
+      "path": "backend\\services\\step1_ingredients_check.py",
+      "accessCount": 8,
+      "lastAccessed": 1776228835274,
+      "type": "file"
+    },
+    {
+      "path": "backend\\services\\step3_standards.py",
+      "accessCount": 8,
+      "lastAccessed": 1776228894356,
+      "type": "file"
+    },
+    {
+      "path": "backend\\main.py",
+      "accessCount": 6,
+      "lastAccessed": 1776221725944,
+      "type": "file"
+    },
+    {
+      "path": "backend\\services\\feature1.py",
+      "accessCount": 6,
+      "lastAccessed": 1776228857851,
+      "type": "file"
+    },
+    {
+      "path": "backend\\routers\\features.py",
+      "accessCount": 5,
+      "lastAccessed": 1776228863928,
+      "type": "file"
+    },
+    {
+      "path": "backend\\scripts\\check_db_connection.py",
+      "accessCount": 4,
+      "lastAccessed": 1776228561158,
+      "type": "file"
+    },
+    {
+      "path": "backend\\.env",
+      "accessCount": 3,
+      "lastAccessed": 1776228510565,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\connection.py",
+      "accessCount": 3,
+      "lastAccessed": 1776228552248,
+      "type": "file"
+    },
+    {
+      "path": "backend\\scripts\\bootstrap_f1_db.py",
+      "accessCount": 3,
+      "lastAccessed": 1776228556808,
+      "type": "file"
+    },
+    {
+      "path": "backend\\models\\judgment.py",
+      "accessCount": 3,
+      "lastAccessed": 1776228841928,
+      "type": "file"
+    },
+    {
+      "path": "backend\\tests\\test_step1_logic.py",
+      "accessCount": 2,
+      "lastAccessed": 1776216555008,
+      "type": "file"
+    },
+    {
+      "path": "backend\\constants\\thresholds_config.py",
+      "accessCount": 2,
+      "lastAccessed": 1776221320963,
+      "type": "file"
+    },
+    {
+      "path": "backend\\constants\\condition_patterns.py",
+      "accessCount": 2,
+      "lastAccessed": 1776221321344,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\migrations\\008_f1_trgm_indexes_rpc.sql",
+      "accessCount": 2,
+      "lastAccessed": 1776221322430,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\migrations\\002_f1_allowed_ingredients.sql",
+      "accessCount": 2,
+      "lastAccessed": 1776221322850,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\migrations\\003_f1_additive_limits.sql",
+      "accessCount": 2,
+      "lastAccessed": 1776221323331,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\features\\feature1\\types.ts",
+      "accessCount": 2,
+      "lastAccessed": 1776221324903,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\features\\feature1\\api\\importCheck.ts",
+      "accessCount": 2,
+      "lastAccessed": 1776221325524,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\migrations\\004_f1_safety_standards.sql",
+      "accessCount": 2,
+      "lastAccessed": 1776221332467,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\migrations\\006_f1_forbidden_ingredients.sql",
+      "accessCount": 2,
+      "lastAccessed": 1776221333118,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\migrations\\007_f1_escalation_logs.sql",
+      "accessCount": 2,
+      "lastAccessed": 1776221333794,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\features\\feature1\\constants.ts",
+      "accessCount": 2,
+      "lastAccessed": 1776221348837,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\services\\apiClient.ts",
+      "accessCount": 2,
+      "lastAccessed": 1776221356434,
+      "type": "file"
+    },
+    {
+      "path": "backend\\routers\\admin_laws.py",
+      "accessCount": 2,
+      "lastAccessed": 1776221361202,
+      "type": "file"
+    },
+    {
+      "path": "backend\\scripts\\apply_migrations.py",
+      "accessCount": 2,
+      "lastAccessed": 1776228559359,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\migrations\\001_pg_trgm_extension.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776215020634,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\migrations\\002_ingredient_list_allowed_status.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776215027795,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\migrations\\003_forbidden_ingredients.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776215040156,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\migrations\\004_thresholds_columns.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776215050676,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\migrations\\005_trgm_indexes_rpc.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776215061283,
+      "type": "file"
+    },
+    {
+      "path": "backend\\models\\__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1776215065141,
+      "type": "file"
+    },
+    {
+      "path": "backend\\constants\\__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1776215070467,
+      "type": "file"
+    },
+    {
+      "path": "backend\\constants\\gmo.py",
+      "accessCount": 1,
+      "lastAccessed": 1776215076480,
+      "type": "file"
+    },
+    {
+      "path": "backend\\utils\\__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1776215105586,
+      "type": "file"
+    },
+    {
+      "path": "backend\\services\\__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1776215108585,
+      "type": "file"
+    },
+    {
+      "path": "backend\\tests\\__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1776215109563,
+      "type": "file"
+    },
+    {
+      "path": "backend\\.env.example",
+      "accessCount": 1,
+      "lastAccessed": 1776215249197,
+      "type": "file"
+    },
+    {
+      "path": "backend\\scripts\\__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1776215270397,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\combined_schema.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776215924676,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\migrations\\005_f1_ingredient_synonyms.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776216076691,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\seed\\01_f1_ingredients_permitted.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776216172320,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\seed\\02_f1_ingredients_restricted.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776216186262,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\seed\\03_f1_ingredients_prohibited.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776216203024,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\seed\\04_f1_forbidden_ingredients.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776216217699,
+      "type": "file"
+    },
+    {
+      "path": "backend\\db\\seed\\05_f1_thresholds_core.sql",
+      "accessCount": 1,
+      "lastAccessed": 1776216250632,
+      "type": "file"
+    },
+    {
+      "path": "backend\\tests\\test_unit_converter.py",
+      "accessCount": 1,
+      "lastAccessed": 1776216482775,
+      "type": "file"
+    },
+    {
+      "path": "backend\\tests\\test_step3_logic.py",
+      "accessCount": 1,
+      "lastAccessed": 1776216522981,
+      "type": "file"
+    },
+    {
+      "path": "frontend\\types\\case.ts",
+      "accessCount": 1,
+      "lastAccessed": 1776220173219,
+      "type": "file"
+    },
+    {
+      "path": "backend\\routers\\__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1776220248455,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

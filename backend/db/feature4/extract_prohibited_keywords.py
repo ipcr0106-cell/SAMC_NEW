@@ -31,22 +31,28 @@ load_dotenv()
 # =============================================================
 
 BASE_DIR = Path(__file__).parent.parent.parent.parent
-DB_DIR   = BASE_DIR / "DB_최신"
+DB_DIR = BASE_DIR / "DB_최신"
 
 # 금지 표현 추출 대상 법령
 TARGET_LAWS = [
     {
-        "path":     DB_DIR / "1_법률" / "식품 등의 표시ㆍ광고에 관한 법률(법률)(제20826호)(20250919).pdf",
+        "path": DB_DIR
+        / "1_법률"
+        / "식품 등의 표시ㆍ광고에 관한 법률(법률)(제20826호)(20250919).pdf",
         "law_name": "식품 등의 표시·광고에 관한 법률",
         "고시번호": "제20826호",
     },
     {
-        "path":     DB_DIR / "5_행정규칙" / "식품등의 부당한 표시 또는 광고의 내용 기준(식품의약품안전처고시)(제2025-79호)(20251204).pdf",
+        "path": DB_DIR
+        / "5_행정규칙"
+        / "식품등의 부당한 표시 또는 광고의 내용 기준(식품의약품안전처고시)(제2025-79호)(20251204).pdf",
         "law_name": "식품등의 부당한 표시 또는 광고의 내용 기준",
         "고시번호": "제2025-79호",
     },
     {
-        "path":     DB_DIR / "5_행정규칙" / "부당한 표시 또는 광고로 보지 아니하는 식품등의 기능성 표시 또는 광고에 관한 규정(식품의약품안전처고시)(제2024-62호)(20250101).pdf",
+        "path": DB_DIR
+        / "5_행정규칙"
+        / "부당한 표시 또는 광고로 보지 아니하는 식품등의 기능성 표시 또는 광고에 관한 규정(식품의약품안전처고시)(제2024-62호)(20250101).pdf",
         "law_name": "부당한 표시 또는 광고로 보지 아니하는 식품등의 기능성 표시 또는 광고에 관한 규정",
         "고시번호": "제2024-62호",
     },
@@ -133,7 +139,9 @@ severity 기준:
 """
 
 
-def extract_keywords_from_chunk(claude: Anthropic, text: str, law_name: str) -> list[dict]:
+def extract_keywords_from_chunk(
+    claude: Anthropic, text: str, law_name: str
+) -> list[dict]:
     """Claude API로 금지 표현 추출. 파싱 실패 시 빈 리스트 반환."""
     prompt = _EXTRACT_PROMPT.format(text=text)
     try:
@@ -171,6 +179,7 @@ def extract_keywords_from_chunk(claude: Anthropic, text: str, law_name: str) -> 
 # Supabase 저장
 # =============================================================
 
+
 def get_law_doc_id(supabase, law_name: str) -> str | None:
     """f4_law_documents에서 law_name으로 UUID 조회."""
     res = (
@@ -202,16 +211,18 @@ def upsert_keywords(supabase, keywords: list[dict], law_doc_id: str | None) -> i
         )
 
         payload = {
-            "keyword":         kw["keyword"],
-            "category":        kw["category"],
-            "severity":        kw["severity"],
-            "law_ref":         kw.get("law_ref", ""),
-            "example":         kw.get("example"),
+            "keyword": kw["keyword"],
+            "category": kw["category"],
+            "severity": kw["severity"],
+            "law_ref": kw.get("law_ref", ""),
+            "example": kw.get("example"),
             "law_document_id": law_doc_id,
         }
 
         if existing.data:
-            supabase.table("f4_prohibited_expressions").update(payload).eq("id", existing.data[0]["id"]).execute()
+            supabase.table("f4_prohibited_expressions").update(payload).eq(
+                "id", existing.data[0]["id"]
+            ).execute()
         else:
             supabase.table("f4_prohibited_expressions").insert(payload).execute()
         saved += 1
@@ -223,16 +234,19 @@ def upsert_keywords(supabase, keywords: list[dict], law_doc_id: str | None) -> i
 # 메인
 # =============================================================
 
+
 def main():
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
 
     if not all([supabase_url, supabase_key, anthropic_key]):
-        raise RuntimeError(".env에 SUPABASE_URL, SUPABASE_SERVICE_KEY, ANTHROPIC_API_KEY 필요")
+        raise RuntimeError(
+            ".env에 SUPABASE_URL, SUPABASE_SERVICE_KEY, ANTHROPIC_API_KEY 필요"
+        )
 
     supabase = create_client(supabase_url, supabase_key)
-    claude   = Anthropic(api_key=anthropic_key)
+    claude = Anthropic(api_key=anthropic_key)
 
     total_saved = 0
 
@@ -254,7 +268,9 @@ def main():
         # 2. f4_law_documents에서 law_doc_id 조회
         law_doc_id = get_law_doc_id(supabase, law_name)
         if not law_doc_id:
-            print(f"  [경고] f4_law_documents에 '{law_name}' 없음 — law_document_id 없이 저장")
+            print(
+                f"  [경고] f4_law_documents에 '{law_name}' 없음 — law_document_id 없이 저장"
+            )
 
         # 3. 청크별 Claude 추출
         all_keywords: list[dict] = []
