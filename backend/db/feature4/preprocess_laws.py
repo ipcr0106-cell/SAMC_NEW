@@ -35,7 +35,7 @@ from xml.etree import ElementTree as ET
 
 import fitz  # pymupdf — 표 병합 셀 처리 + 이미지 페이지 렌더링
 import pdfplumber
-from anthropic import Anthropic
+from openai import OpenAI
 from dotenv import load_dotenv
 from pinecone import Pinecone
 from sentence_transformers import SentenceTransformer
@@ -382,7 +382,7 @@ _HWPX_MEDIA_TYPE: dict[str, str] = {
 }
 
 
-def extract_image_pages_claude_hwpx(hwpx_path: Path, client: Anthropic) -> list[str]:
+def extract_image_pages_claude_hwpx(hwpx_path: Path, client: OpenAI) -> list[str]:
     """
     HWPX BinData/ 폴더의 이미지를 Claude Vision으로 텍스트 추출.
 
@@ -409,18 +409,16 @@ def extract_image_pages_claude_hwpx(hwpx_path: Path, client: Anthropic) -> list[
             img_b64    = base64.b64encode(img_data).decode()
 
             try:
-                response = client.messages.create(
-                    model="claude-opus-4-6",
+                response = client.chat.completions.create(
+                    model="gpt-4o",
                     max_tokens=1500,
                     messages=[{
                         "role": "user",
                         "content": [
                             {
-                                "type": "image",
-                                "source": {
-                                    "type":       "base64",
-                                    "media_type": media_type,
-                                    "data":       img_b64,
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{media_type};base64,{img_b64}",
                                 },
                             },
                             {
@@ -435,7 +433,7 @@ def extract_image_pages_claude_hwpx(hwpx_path: Path, client: Anthropic) -> list[
                         ],
                     }],
                 )
-                page_text = response.content[0].text.strip()
+                page_text = (response.choices[0].message.content or "").strip()
                 if page_text:
                     extracted.append(f"[{Path(entry).name} 이미지 추출]\n{page_text}")
             except Exception as e:
@@ -466,7 +464,7 @@ def _extract_tables_auto(file_path: Path) -> list[str]:
     return []
 
 
-def _extract_images_auto(file_path: Path, client: Anthropic) -> list[str]:
+def _extract_images_auto(file_path: Path, client: OpenAI) -> list[str]:
     ext = file_path.suffix.lower()
     if ext == ".pdf":
         return extract_image_pages_claude(file_path, client)
@@ -532,7 +530,7 @@ _IMAGE_PAGE_MIN_IMAGES = 3
 _IMAGE_PAGE_MAX_TEXT   = 150
 
 
-def extract_image_pages_claude(pdf_path: Path, client: Anthropic) -> list[str]:
+def extract_image_pages_claude(pdf_path: Path, client: OpenAI) -> list[str]:
     """
     이미지가 주를 이루는 페이지(도안, 서식 예시 등)를 Claude Vision으로 텍스트 추출.
 
@@ -554,18 +552,16 @@ def extract_image_pages_claude(pdf_path: Path, client: Anthropic) -> list[str]:
         img_b64 = base64.b64encode(pix.tobytes("png")).decode()
 
         try:
-            response = client.messages.create(
-                model="claude-opus-4-6",
+            response = client.chat.completions.create(
+                model="gpt-4o",
                 max_tokens=1500,
                 messages=[{
                     "role": "user",
                     "content": [
                         {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/png",
-                                "data": img_b64,
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{img_b64}",
                             },
                         },
                         {
@@ -580,7 +576,7 @@ def extract_image_pages_claude(pdf_path: Path, client: Anthropic) -> list[str]:
                     ],
                 }],
             )
-            page_text = response.content[0].text.strip()
+            page_text = (response.choices[0].message.content or "").strip()
             if page_text:
                 extracted.append(f"[p.{page_num + 1} 이미지 추출]\n{page_text}")
         except Exception as e:
@@ -782,7 +778,7 @@ def preprocess_single_law(
     index,
     supabase_client,
     model: SentenceTransformer,
-    claude_client: Anthropic,
+    openai_client: OpenAI,
 ) -> dict:
     """
     단일 법령 파일(PDF 또는 HWPX)을 전처리하여 Pinecone + Supabase에 적재.
@@ -812,7 +808,7 @@ def preprocess_single_law(
         chunks.append(_make_chunk(t, "별표/표", law_name, 고시번호, tier))
 
     # 4. 이미지 추출 (PDF: pymupdf 렌더링 / HWPX: BinData/ 추출)
-    image_texts = _extract_images_auto(pdf_path, claude_client)
+    image_texts = _extract_images_auto(pdf_path, openai_client)
     for t in image_texts:
         chunks.append(_make_chunk(t, "별표/도안", law_name, 고시번호, tier))
 
@@ -855,7 +851,7 @@ def main() -> None:
     pc            = Pinecone(api_key=pinecone_key)
     supabase      = create_client(supabase_url, supabase_key)
     model         = SentenceTransformer(EMBED_MODEL)
-    claude_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     # 인덱스는 대시보드에서 이미 생성됨 — host로 직접 연결
     index = pc.Index(host=pinecone_host)
@@ -888,7 +884,7 @@ def main() -> None:
 
         # 4. 이미지 추출 (PDF: pymupdf 렌더링 / HWPX: BinData/ 추출)
         print("  4) 이미지 추출 (Claude Vision)...")
-        image_texts = _extract_images_auto(file_path, claude_client)
+        image_texts = _extract_images_auto(file_path, openai_client)
         for t in image_texts:
             chunks.append(_make_chunk(t, "별표/도안", law_info["law_name"], law_info["고시번호"], tier))
 

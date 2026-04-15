@@ -27,11 +27,11 @@ _clients: dict = {}
 
 
 def _get_clients() -> dict:
-    """Pinecone / Supabase / SentenceTransformer / Anthropic 클라이언트 싱글톤."""
+    """Pinecone / Supabase / SentenceTransformer / OpenAI 클라이언트 싱글톤."""
     if _clients:
         return _clients
 
-    from anthropic import Anthropic
+    from openai import OpenAI
     from pinecone import Pinecone
     from sentence_transformers import SentenceTransformer
     from supabase import create_client
@@ -40,7 +40,7 @@ def _get_clients() -> dict:
     pinecone_host = os.getenv("PINECONE_HOST")
     supabase_url  = os.getenv("SUPABASE_URL")
     supabase_key  = os.getenv("SUPABASE_SERVICE_KEY")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    openai_key    = os.getenv("OPENAI_API_KEY")
 
     if not all([pinecone_key, pinecone_host, supabase_url, supabase_key]):
         raise RuntimeError(
@@ -51,7 +51,7 @@ def _get_clients() -> dict:
     _clients["index"]    = pc.Index(host=pinecone_host)
     _clients["supabase"] = create_client(supabase_url, supabase_key)
     _clients["model"]    = SentenceTransformer("intfloat/multilingual-e5-large")
-    _clients["claude"]   = Anthropic(api_key=anthropic_key)
+    _clients["openai"]   = OpenAI(api_key=openai_key)
     return _clients
 
 
@@ -111,7 +111,7 @@ async def upload_law(
             index          = clients["index"],
             supabase_client= clients["supabase"],
             model          = clients["model"],
-            claude_client  = clients["claude"],
+            openai_client  = clients["openai"],
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"전처리 실패: {e}")

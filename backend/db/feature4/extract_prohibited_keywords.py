@@ -20,7 +20,7 @@ import re
 from pathlib import Path
 
 import pdfplumber
-from anthropic import Anthropic
+from openai import OpenAI
 from dotenv import load_dotenv
 from supabase import create_client
 
@@ -133,16 +133,16 @@ severity 기준:
 """
 
 
-def extract_keywords_from_chunk(claude: Anthropic, text: str, law_name: str) -> list[dict]:
-    """Claude API로 금지 표현 추출. 파싱 실패 시 빈 리스트 반환."""
+def extract_keywords_from_chunk(claude: OpenAI, text: str, law_name: str) -> list[dict]:
+    """OpenAI API로 금지 표현 추출. 파싱 실패 시 빈 리스트 반환."""
     prompt = _EXTRACT_PROMPT.format(text=text)
     try:
-        resp = claude.messages.create(
-            model="claude-opus-4-6",
+        resp = claude.chat.completions.create(
+            model="gpt-4o",
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = resp.content[0].text.strip()
+        raw = (resp.choices[0].message.content or "").strip()
 
         # JSON 블록 추출 (```json ... ``` 감싸인 경우 대응)
         match = re.search(r"\[.*\]", raw, re.DOTALL)
@@ -163,7 +163,7 @@ def extract_keywords_from_chunk(claude: Anthropic, text: str, law_name: str) -> 
                 valid.append(item)
         return valid
     except Exception as e:
-        print(f"    [경고] Claude 호출 오류: {e}")
+        print(f"    [경고] OpenAI 호출 오류: {e}")
         return []
 
 
@@ -226,13 +226,13 @@ def upsert_keywords(supabase, keywords: list[dict], law_doc_id: str | None) -> i
 def main():
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
 
-    if not all([supabase_url, supabase_key, anthropic_key]):
-        raise RuntimeError(".env에 SUPABASE_URL, SUPABASE_SERVICE_KEY, ANTHROPIC_API_KEY 필요")
+    if not all([supabase_url, supabase_key, openai_key]):
+        raise RuntimeError(".env에 SUPABASE_URL, SUPABASE_SERVICE_KEY, OPENAI_API_KEY 필요")
 
     supabase = create_client(supabase_url, supabase_key)
-    claude   = Anthropic(api_key=anthropic_key)
+    claude   = OpenAI(api_key=openai_key)
 
     total_saved = 0
 
