@@ -14,6 +14,7 @@ import {
   Scale,
 } from "lucide-react";
 import StepNavigation from "@/components/layout/StepNavigation";
+import CaseSummaryPanel from "@/components/layout/CaseSummaryPanel";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 
@@ -149,8 +150,8 @@ export default function F1ImportCheckPage() {
           </Card>
         </div>
 
-        {/* 우측: 관련 법령 */}
-        <div className="space-y-6">
+        {/* 우측: 관련 법령 + 케이스 요약 */}
+        <div className="space-y-4">
           <Card padding="lg">
             <div className="flex items-center gap-2 mb-4">
               <BookOpen size={16} className="text-blue-600" />
@@ -163,6 +164,9 @@ export default function F1ImportCheckPage() {
               </p>
             </div>
           </Card>
+
+          {/* 케이스 요약 (파싱 결과 + 라벨 이미지) */}
+          <CaseSummaryPanel caseId={caseId} />
         </div>
       </div>
 

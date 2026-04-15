@@ -14,19 +14,20 @@ export default function Toggle({
   description,
 }: ToggleProps) {
   return (
-    <label className="flex items-center justify-between gap-3 cursor-pointer group">
+    <div
+      className="flex items-center justify-between gap-3 cursor-pointer group select-none"
+      onClick={() => onChange(!checked)}
+    >
       <div className="flex flex-col">
         <span className="text-sm font-medium text-slate-700">{label}</span>
         {description && (
           <span className="text-xs text-slate-400 mt-0.5">{description}</span>
         )}
       </div>
-      <button
-        type="button"
+      <div
         role="switch"
         aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
           checked ? "bg-blue-600" : "bg-slate-200"
         }`}
       >
@@ -35,7 +36,7 @@ export default function Toggle({
             checked ? "translate-x-6" : "translate-x-1"
           }`}
         />
-      </button>
-    </label>
+      </div>
+    </div>
   );
 }

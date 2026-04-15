@@ -70,11 +70,40 @@ class BasicInfo(BaseModel):
     is_oem: bool = Field(default=False, description="OEM 여부")
 
 
+class ProcessCodeReason(BaseModel):
+    """공정 코드 1개의 선정 근거 (하위 호환용)."""
+    code: str = Field(description="공정 코드 (예: '01')")
+    reason: str = Field(description="해당 코드를 선택한 근거 (원문 기반 설명)")
+
+
+class ProcessCodeCandidate(BaseModel):
+    """AI가 검토한 공정 코드 후보 1개.
+
+    is_recommended=True  → AI 최종 추천 (process_codes에 포함됨)
+    is_recommended=False → 유사/혼동 가능 코드 (참고용, 사용자가 직접 선택 가능)
+    """
+    code: str = Field(description="공정 코드 (예: '35')")
+    reason: str = Field(description="이 코드를 추천/고려한 근거 (원문 기반)")
+    is_recommended: bool = Field(description="True=AI 최종 추천, False=유사 코드")
+    confusion_note: str = Field(
+        default="",
+        description="유사 코드일 때 — 추천 코드와 어떻게 다른지 구별 포인트",
+    )
+
+
 class ProcessInfo(BaseModel):
     """제조공정 정보. 프론트엔드 ProcessCodeCard 대응."""
     process_codes: list[str] = Field(
         default_factory=list,
-        description="추출된 공정 코드 목록 (예: ['01','10','15'])",
+        description="AI 최종 추천 공정 코드 목록 (예: ['01','10','15'])",
+    )
+    process_code_reasons: list[ProcessCodeReason] = Field(
+        default_factory=list,
+        description="추천 코드별 선정 근거 (하위 호환용, candidates로 대체)",
+    )
+    process_code_candidates: list[ProcessCodeCandidate] = Field(
+        default_factory=list,
+        description="추천 + 유사 코드 전체 후보 목록. 프론트 선택 UI에 표시.",
     )
     raw_process_text: str = Field(
         default="",
@@ -116,6 +145,10 @@ class ParseResponse(BaseModel):
     raw_texts: Optional[dict[str, str]] = Field(
         default=None,
         description="doc_type별 OCR 원문 텍스트 (디버깅용). 키: doc_type, 값: raw text",
+    )
+    extraction_errors: list[str] = Field(
+        default_factory=list,
+        description="OCR 텍스트 추출에 실패한 파일 목록 (파일명: 실패 이유)",
     )
     error_message: Optional[str] = None
     parsed_at: Optional[datetime] = None

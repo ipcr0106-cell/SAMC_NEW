@@ -10,6 +10,7 @@ import {
   FileText,
 } from "lucide-react";
 import StepNavigation from "@/components/layout/StepNavigation";
+import CaseSummaryPanel from "@/components/layout/CaseSummaryPanel";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 
@@ -32,7 +33,8 @@ export default function F3RequiredDocsPage() {
     <div className="max-w-[1440px] mx-auto px-6 py-6 pb-28">
       <StepNavigation currentStep="F3" completedSteps={["upload", "F1", "F2"]} />
 
-      <div className="mt-6 max-w-3xl mx-auto space-y-6">
+      <div className="mt-6 grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
         <Card padding="lg">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -84,6 +86,12 @@ export default function F3RequiredDocsPage() {
             </div>
           )}
         </Card>
+        </div>
+
+        {/* 우측: 케이스 요약 */}
+        <div className="space-y-4">
+          <CaseSummaryPanel caseId={caseId} />
+        </div>
       </div>
 
       {/* 하단 액션바 */}

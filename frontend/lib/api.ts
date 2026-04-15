@@ -18,6 +18,8 @@ export interface CaseData {
 }
 
 export const createCase = async (productName: string, importerName: string = ""): Promise<CaseData> => {
+  // 🔍 디버그: 케이스 생성 호출 추적 — 브라우저 콘솔(F12)에서 호출 경로 확인 가능
+  console.trace(`[createCase] 케이스 생성 호출: product="${productName}"`);
   const res = await fetch(`${API_BASE}/cases`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -27,7 +29,7 @@ export const createCase = async (productName: string, importerName: string = "")
   return res.json();
 };
 
-export const listCases = async (status?: string, limit = 50, offset = 0) => {
+export const listCases = async (status?: string, limit = 200, offset = 0) => {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   params.set("limit", String(limit));
@@ -85,6 +87,52 @@ export const uploadDocument = async (
   return res.json();
 };
 
+export const listDocuments = async (caseId: string) => {
+  const res = await fetch(`${API_BASE}/cases/${caseId}/documents`);
+  if (!res.ok) throw new Error(`List documents failed: ${res.status}`);
+  return res.json() as Promise<{
+    case_id: string;
+    documents: Array<{
+      id: string;
+      case_id: string;
+      doc_type: string;
+      file_name: string;
+      mime_type: string;
+      created_at: string;
+    }>;
+  }>;
+};
+
+export const getDocumentViewUrl = async (docId: string) => {
+  const res = await fetch(`${API_BASE}/documents/${docId}/view`);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`View URL failed: ${res.status} ${txt}`);
+  }
+  return res.json() as Promise<{
+    doc_id: string;
+    file_name: string;
+    mime_type: string;
+    url: string;
+    expires_in: number;
+  }>;
+};
+
+/** 새 탭에서 업로드된 문서 열기 (Signed URL 발급 후 window.open) */
+export const openDocumentInNewTab = async (docId: string) => {
+  const { url } = await getDocumentViewUrl(docId);
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
+export const deleteDocument = async (docId: string) => {
+  const res = await fetch(`${API_BASE}/documents/${docId}`, { method: "DELETE" });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Delete failed: ${res.status} ${txt}`);
+  }
+  return res.json() as Promise<{ deleted: boolean; doc_id: string }>;
+};
+
 export const parseDocuments = async (caseId: string) => {
   const res = await fetch(`${API_BASE}/cases/${caseId}/parse`, {
     method: "POST",
@@ -106,10 +154,95 @@ export const saveParsedResult = async (caseId: string, parsedResult: any) => {
   return res.json();
 };
 
+/** OCR 분석 결과 DOCX/PDF 다운로드 트리거
+ *  selectedImageIds: 내보낼 라벨 이미지 ID 목록 (미전달 시 전체)
+ */
+export const downloadParsedResultFile = async (
+  caseId: string,
+  format: "docx" | "pdf",
+  selectedImageIds?: string[]
+) => {
+  const params = new URLSearchParams();
+  if (selectedImageIds && selectedImageIds.length > 0) {
+    params.set("selected_image_ids", selectedImageIds.join(","));
+  }
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const res = await fetch(
+    `${API_BASE}/cases/${caseId}/parsed-result/export.${format}${qs}`
+  );
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Export failed: ${res.status} ${txt}`);
+  }
+
+  // 서버가 보낸 Content-Disposition에서 파일명 추출 (없으면 기본값)
+  const disp = res.headers.get("Content-Disposition") || "";
+  let filename = `OCR분석결과.${format}`;
+  const utf8Match = disp.match(/filename\*=UTF-8''([^;]+)/i);
+  const asciiMatch = disp.match(/filename="?([^";]+)"?/i);
+  if (utf8Match) {
+    try { filename = decodeURIComponent(utf8Match[1]); } catch { /* ignore */ }
+  } else if (asciiMatch) {
+    filename = asciiMatch[1];
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
 export const getParsedResult = async (caseId: string) => {
   const res = await fetch(`${API_BASE}/cases/${caseId}/parsed-result`);
   if (!res.ok) throw new Error(`Get parsed result failed: ${res.status}`);
   return res.json();
+};
+
+// ── 라벨 이미지 (F4 연동) ────────────────────────
+
+export interface LabelImageData {
+  id: string;
+  case_id: string;
+  source_document_id?: string;
+  cropped_storage_path: string;
+  signed_url?: string;           // 백엔드가 목록 응답에 포함해줌
+  image_index?: number;          // 동일 파일 내 순번 (0-based) — 정렬용
+  bbox?: { x1: number; y1: number; x2: number; y2: number };
+  width?: number;
+  height?: number;
+  label_product_name?: string | null;
+  label_ingredients?: string | null;
+  label_content_volume?: string | null;
+  label_origin?: string | null;
+  label_manufacturer?: string | null;
+  label_case_number?: string | null;
+  created_at?: string;
+}
+
+export const getLabelImages = async (caseId: string): Promise<LabelImageData[]> => {
+  const res = await fetch(`${API_BASE}/cases/${caseId}/label-images`);
+  if (!res.ok) throw new Error(`Label images failed: ${res.status}`);
+  const data = await res.json();
+  const images = (data.label_images ?? []) as LabelImageData[];
+  // source_document_id → image_index 순으로 정렬 (파일별, 파일 내 순번)
+  return images.sort((a, b) => {
+    const docA = a.source_document_id ?? "";
+    const docB = b.source_document_id ?? "";
+    if (docA !== docB) return docA.localeCompare(docB);
+    return (a.image_index ?? 0) - (b.image_index ?? 0);
+  });
+};
+
+export const getLabelImageViewUrl = async (caseId: string, imageId: string): Promise<string> => {
+  const res = await fetch(`${API_BASE}/cases/${caseId}/label-images/${imageId}/view`);
+  if (!res.ok) throw new Error(`Label image URL failed: ${res.status}`);
+  const data = await res.json();
+  return data.url as string;
 };
 
 // ── 기능 1: 수입 가능 여부 ─────────────────────────

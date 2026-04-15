@@ -2,10 +2,17 @@
 SAMC 수입식품 검역 AI — OCR / 텍스트 추출 서비스
 
 파일 유형별 텍스트 추출 전략:
-  - PDF       → PyMuPDF(fitz) 텍스트 추출 + fallback: 이미지 페이지는 Claude Vision
-  - 이미지     → base64 인코딩 후 Claude Vision API로 텍스트 인식
+  - PDF       → PyMuPDF(fitz) 텍스트 추출 + fallback: 이미지 페이지는 Vision OCR
+  - 이미지     → base64 인코딩 후 Vision API로 텍스트 인식
   - HWP/HWPX → parser-service (kordoc, Node.js) HTTP 호출
   - Excel     → openpyxl로 셀 데이터 읽기
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️  임시 전환 안내 (TEMPORARY — 개발/테스트용):
+    Vision OCR은 현재 OpenAI(gpt-4o)를 사용합니다.
+    최종 통합 단계에서는 반드시 Claude Vision으로 롤백할 것.
+    (검색 키워드: "# >>> OPENAI TEMP")
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 from __future__ import annotations
@@ -41,18 +48,29 @@ async def extract_text_from_file(
         추출된 Raw 텍스트 문자열
     """
     ext = Path(file_name).suffix.lower()
+    logger.info(f"텍스트 추출 시작: {file_name} (ext={ext}, mime={mime_type}, size={len(file_bytes)}bytes)")
 
+    text = ""
     if ext == ".pdf":
-        return await _extract_from_pdf(file_bytes)
+        text = await _extract_from_pdf(file_bytes)
     elif ext in (".hwp", ".hwpx"):
-        return await _extract_from_hwp(file_bytes, file_name)
+        text = await _extract_from_hwp(file_bytes, file_name)
     elif ext in (".xlsx", ".xls"):
-        return _extract_from_excel(file_bytes)
+        text = _extract_from_excel(file_bytes)
+    elif ext == ".docx":
+        text = _extract_from_docx(file_bytes)
     elif ext in (".png", ".jpg", ".jpeg", ".webp"):
-        return await _extract_from_image(file_bytes, mime_type)
+        text = await _extract_from_image(file_bytes, mime_type)
     else:
         logger.warning(f"지원하지 않는 파일 형식: {ext} ({file_name})")
         return ""
+
+    if text:
+        logger.info(f"텍스트 추출 성공: {file_name} → {len(text)}자")
+    else:
+        logger.warning(f"텍스트 추출 결과 없음: {file_name}")
+
+    return text
 
 
 # ─────────────────────────────────────────────
@@ -148,26 +166,126 @@ def _extract_from_excel(file_bytes: bytes) -> str:
 
 
 # ─────────────────────────────────────────────
-# 이미지 OCR (Claude Vision API)
+# DOCX 추출 (python-docx)
 # ─────────────────────────────────────────────
 
-async def _extract_from_image(image_bytes: bytes, mime_type: str) -> str:
-    """이미지를 base64로 인코딩하여 Claude Vision API로 텍스트 인식.
+def _extract_from_docx(file_bytes: bytes) -> str:
+    """python-docx로 Word 문서의 본문 + 표 텍스트 추출."""
+    try:
+        from docx import Document
+    except ImportError:
+        logger.error("python-docx가 설치되지 않았습니다. pip install python-docx")
+        return ""
 
-    NOTE: 실제 Claude API 호출은 parsing_service.py의 Anthropic 클라이언트를
-    재사용할 수도 있으나, OCR 레이어에서 독립적으로 처리하기 위해 별도 호출.
+    try:
+        doc = Document(io.BytesIO(file_bytes))
+    except Exception as e:
+        logger.error(f"DOCX 파일 열기 실패: {e}")
+        return ""
+
+    parts: list[str] = []
+
+    # 본문 단락
+    for para in doc.paragraphs:
+        txt = (para.text or "").strip()
+        if txt:
+            parts.append(txt)
+
+    # 표
+    for t_idx, table in enumerate(doc.tables, start=1):
+        parts.append(f"[표 {t_idx}]")
+        for row in table.rows:
+            cells = [(cell.text or "").strip() for cell in row.cells]
+            if any(cells):
+                parts.append(" | ".join(cells))
+
+    return "\n".join(parts)
+
+
+# ─────────────────────────────────────────────
+# 이미지 OCR (Vision API)
+# ─────────────────────────────────────────────
+
+_OCR_PROMPT = (
+    "이 이미지에 포함된 모든 텍스트를 정확하게 추출해주세요. "
+    "표가 있다면 Markdown 표 형태로 변환해주세요. "
+    "언어는 원문 그대로 유지하되, 읽기 어려운 부분은 [불명확]로 표시해주세요."
+)
+
+
+async def _extract_from_image(image_bytes: bytes, mime_type: str) -> str:
+    """이미지 Vision OCR 디스패처.
+
+    ⚠️ 현재(임시): OpenAI gpt-4o Vision 사용
+    ⚠️ 최종(복원): Claude Vision (_extract_from_image_claude) 로 교체
     """
+    # 지원 MIME 타입 보정
+    media_type = mime_type
+    if media_type not in ("image/png", "image/jpeg", "image/webp", "image/gif"):
+        media_type = "image/png"
+
+    # >>> OPENAI TEMP — 최종 통합 시 _extract_from_image_claude 로 교체
+    return await _extract_from_image_openai(image_bytes, media_type)
+    # return await _extract_from_image_claude(image_bytes, media_type)
+    # <<< OPENAI TEMP
+
+
+# ─────────────────────────────────────────────
+# >>> OPENAI TEMP — 최종 통합 시 제거 가능
+# ─────────────────────────────────────────────
+
+async def _extract_from_image_openai(image_bytes: bytes, media_type: str) -> str:
+    """OpenAI gpt-4o Vision으로 이미지 텍스트 추출 — 개발/테스트용 임시 구현."""
+    openai_api_key = os.getenv("OPENAI_API_KEY", "")
+    if not openai_api_key:
+        logger.error("OPENAI_API_KEY가 설정되지 않았습니다.")
+        return ""
+
+    try:
+        from openai import AsyncOpenAI
+    except ImportError:
+        logger.error("openai 패키지가 설치되지 않았습니다. pip install openai")
+        return ""
+
+    b64_data = base64.b64encode(image_bytes).decode("utf-8")
+    data_url = f"data:{media_type};base64,{b64_data}"
+    model = os.getenv("OPENAI_MODEL", "gpt-4o")
+
+    try:
+        client = AsyncOpenAI(api_key=openai_api_key)
+        completion = await client.chat.completions.create(
+            model=model,
+            max_tokens=4096,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": _OCR_PROMPT},
+                        {"type": "image_url", "image_url": {"url": data_url}},
+                    ],
+                }
+            ],
+        )
+        return completion.choices[0].message.content or ""
+    except Exception as e:
+        logger.error(f"OpenAI Vision OCR 실패: {e}")
+        return ""
+
+# <<< OPENAI TEMP END
+
+
+# ─────────────────────────────────────────────
+# --- CLAUDE ORIGINAL (최종 통합 시 사용) ---
+# ─────────────────────────────────────────────
+
+async def _extract_from_image_claude(image_bytes: bytes, media_type: str) -> str:
+    """Claude Vision으로 이미지 텍스트 추출 — 최종 프로덕션용."""
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "")
     if not anthropic_api_key:
         logger.error("ANTHROPIC_API_KEY가 설정되지 않았습니다.")
         return ""
 
     b64_data = base64.b64encode(image_bytes).decode("utf-8")
-
-    # 지원 MIME 타입 보정
-    media_type = mime_type
-    if media_type not in ("image/png", "image/jpeg", "image/webp", "image/gif"):
-        media_type = "image/png"
 
     try:
         import anthropic
@@ -188,14 +306,7 @@ async def _extract_from_image(image_bytes: bytes, mime_type: str) -> str:
                                 "data": b64_data,
                             },
                         },
-                        {
-                            "type": "text",
-                            "text": (
-                                "이 이미지에 포함된 모든 텍스트를 정확하게 추출해주세요. "
-                                "표가 있다면 Markdown 표 형태로 변환해주세요. "
-                                "언어는 원문 그대로 유지하되, 읽기 어려운 부분은 [불명확]로 표시해주세요."
-                            ),
-                        },
+                        {"type": "text", "text": _OCR_PROMPT},
                     ],
                 }
             ],

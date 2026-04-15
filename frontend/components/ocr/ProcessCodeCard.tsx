@@ -1,17 +1,26 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Cog, Plus, Globe2, Search } from "lucide-react";
+import { Cog, Globe2, Search, CheckSquare, Square, ChevronDown, ChevronUp } from "lucide-react";
 import Card from "@/components/ui/Card";
-import Badge from "@/components/ui/Badge";
 import Input from "@/components/ui/Input";
 import Toggle from "@/components/ui/Toggle";
-import Button from "@/components/ui/Button";
 import {
   PROCESS_CODE_GROUPS,
-  ALL_PROCESS_CODES,
   getProcessCodeLabel,
 } from "@/lib/process-codes";
+
+interface ProcessCodeReason {
+  code: string;
+  reason: string;
+}
+
+export interface ProcessCodeCandidate {
+  code: string;
+  reason: string;
+  is_recommended: boolean;
+  confusion_note?: string;
+}
 
 interface ProcessCodeCardProps {
   processCodes: string[];
@@ -22,6 +31,154 @@ interface ProcessCodeCardProps {
   onOemChange: (isOem: boolean) => void;
   /** OCR에서 읽은 공정 원문 (표시용) */
   rawProcessText?: string;
+  /** AI가 각 공정 코드를 선택한 근거 목록 (하위 호환) */
+  processCodeReasons?: ProcessCodeReason[];
+  /** AI 공정 코드 후보 (추천 + 유사 코드) */
+  processCodeCandidates?: ProcessCodeCandidate[];
+}
+
+/** 추천 코드 섹션 — 체크박스로 선택/해제 */
+function CandidateList({
+  candidates,
+  processCodes,
+  onProcessCodesChange,
+}: {
+  candidates: ProcessCodeCandidate[];
+  processCodes: string[];
+  onProcessCodesChange: (codes: string[]) => void;
+}) {
+  const [showSimilar, setShowSimilar] = useState(true);
+
+  const recommended = candidates.filter((c) => c.is_recommended);
+  const similar = candidates.filter((c) => !c.is_recommended);
+
+  const toggle = (code: string) => {
+    if (processCodes.includes(code)) {
+      onProcessCodesChange(processCodes.filter((c) => c !== code));
+    } else {
+      onProcessCodesChange([...processCodes, code]);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      {/* 추천 코드 */}
+      {recommended.length > 0 && (
+        <div className="space-y-1.5">
+          {recommended.map((cand) => {
+            const checked = processCodes.includes(cand.code);
+            return (
+              <button
+                key={cand.code}
+                type="button"
+                onClick={() => toggle(cand.code)}
+                className={`w-full text-left flex items-start gap-2.5 p-2.5 rounded-xl border transition-all ${
+                  checked
+                    ? "bg-blue-50 border-blue-200"
+                    : "bg-white border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <span className={`mt-0.5 shrink-0 ${checked ? "text-blue-500" : "text-slate-300"}`}>
+                  {checked ? <CheckSquare size={15} /> : <Square size={15} />}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className={`text-[11px] font-bold font-mono px-1.5 py-0.5 rounded ${
+                        checked
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {cand.code}
+                    </span>
+                    <span className={`text-xs font-semibold ${checked ? "text-blue-800" : "text-slate-600"}`}>
+                      {getProcessCodeLabel(cand.code).replace(/^\d+\s*[-–]\s*/, "")}
+                    </span>
+                    <span className="text-[10px] font-medium bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full">
+                      AI 추천
+                    </span>
+                  </div>
+                  {cand.reason && (
+                    <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                      ↳ {cand.reason}
+                    </p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 유사/혼동 코드 */}
+      {similar.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowSimilar((p) => !p)}
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-500 hover:text-amber-700 transition-colors py-1 px-2 bg-amber-50 rounded-lg w-full"
+          >
+            {showSimilar ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            <span>혼동 가능 유사 코드 {similar.length}개 — 직접 선택 가능</span>
+          </button>
+
+          {showSimilar && (
+            <div className="mt-1.5 space-y-1.5">
+              {similar.map((cand) => {
+                const checked = processCodes.includes(cand.code);
+                return (
+                  <button
+                    key={cand.code}
+                    type="button"
+                    onClick={() => toggle(cand.code)}
+                    className={`w-full text-left flex items-start gap-2.5 p-2.5 rounded-xl border transition-all ${
+                      checked
+                        ? "bg-amber-50 border-amber-200"
+                        : "bg-slate-50 border-slate-200 hover:border-amber-200 hover:bg-amber-50/50"
+                    }`}
+                  >
+                    <span className={`mt-0.5 shrink-0 ${checked ? "text-amber-500" : "text-slate-300"}`}>
+                      {checked ? <CheckSquare size={15} /> : <Square size={15} />}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className={`text-[11px] font-bold font-mono px-1.5 py-0.5 rounded ${
+                            checked
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-slate-200 text-slate-500"
+                          }`}
+                        >
+                          {cand.code}
+                        </span>
+                        <span className={`text-xs font-semibold ${checked ? "text-amber-800" : "text-slate-500"}`}>
+                          {getProcessCodeLabel(cand.code).replace(/^\d+\s*[-–]\s*/, "")}
+                        </span>
+                        <span className="text-[10px] font-medium bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full">
+                          유사 코드
+                        </span>
+                      </div>
+                      {cand.reason && (
+                        <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                          ↳ {cand.reason}
+                        </p>
+                      )}
+                      {cand.confusion_note && (
+                        <p className="text-[11px] text-amber-600 mt-0.5 leading-snug bg-amber-50 rounded px-1.5 py-0.5">
+                          ⚠ {cand.confusion_note}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ProcessCodeCard({
@@ -32,6 +189,8 @@ export default function ProcessCodeCard({
   isOem,
   onOemChange,
   rawProcessText,
+  processCodeReasons,
+  processCodeCandidates,
 }: ProcessCodeCardProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -62,6 +221,9 @@ export default function ProcessCodeCard({
     onProcessCodesChange(processCodes.filter((c) => c !== code));
   };
 
+  // candidates가 있으면 candidate UI, 없으면 기존 tag UI
+  const hasCandidates = processCodeCandidates && processCodeCandidates.length > 0;
+
   return (
     <Card>
       {/* 헤더 */}
@@ -87,33 +249,70 @@ export default function ProcessCodeCard({
           </div>
         )}
 
-        {/* 제조공정 코드 (AI 변환 결과) */}
+        {/* 공정 코드 섹션 */}
         <div>
-          <label className="text-sm font-medium text-slate-700 mb-2 block">
-            공정 코드 (AI 자동 변환)
-          </label>
-          <div className="flex flex-wrap gap-2 mb-3 min-h-[36px] p-3 bg-slate-50 rounded-xl">
-            {processCodes.length === 0 ? (
-              <span className="text-xs text-slate-400">
-                공정 코드가 없습니다. 아래에서 검색하여 추가하세요.
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-slate-700">
+              공정 코드 (AI 자동 변환)
+            </label>
+            {processCodes.length > 0 && (
+              <span className="text-[10px] font-semibold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">
+                {processCodes.length}개 선택됨
               </span>
-            ) : (
-              processCodes.map((code) => (
-                <Badge
-                  key={code}
-                  variant="blue"
-                  size="md"
-                  removable
-                  onRemove={() => removeCode(code)}
-                >
-                  {getProcessCodeLabel(code)}
-                </Badge>
-              ))
             )}
           </div>
 
-          {/* 검색 기반 코드 추가 */}
-          <div className="relative">
+          {/* AI 후보 코드 목록 (체크박스 UI) */}
+          {hasCandidates ? (
+            <CandidateList
+              candidates={processCodeCandidates!}
+              processCodes={processCodes}
+              onProcessCodesChange={onProcessCodesChange}
+            />
+          ) : (
+            /* 후보 없을 때 기존 태그 UI (하위 호환) */
+            <div className="flex flex-col gap-2 mb-3 min-h-[36px] p-3 bg-slate-50 rounded-xl">
+              {processCodes.length === 0 ? (
+                <span className="text-xs text-slate-400">
+                  공정 코드가 없습니다. 아래에서 검색하여 추가하세요.
+                </span>
+              ) : (
+                processCodes.map((code) => {
+                  const reasonObj = processCodeReasons?.find((r) => r.code === code);
+                  return (
+                    <div key={code} className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-bold font-mono bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                          {code}
+                        </span>
+                        <span className="text-xs text-slate-700">
+                          {getProcessCodeLabel(code).replace(/^\d+\s*[-–]\s*/, "")}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeCode(code)}
+                          className="ml-auto text-[10px] text-slate-400 hover:text-red-400 transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      {reasonObj?.reason && (
+                        <p className="text-[11px] text-slate-500 leading-snug pl-1">
+                          ↳ {reasonObj.reason}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* 수동 검색 추가 (후보 UI에서도 보완 추가 가능) */}
+          <div className={`relative ${hasCandidates ? "mt-3" : ""}`}>
+            <p className="text-[11px] text-slate-400 mb-1.5">
+              {hasCandidates ? "목록에 없는 코드 직접 추가" : ""}
+            </p>
             <div className="relative">
               <Search
                 size={14}
@@ -135,7 +334,6 @@ export default function ProcessCodeCard({
             {/* 드롭다운 */}
             {dropdownOpen && (
               <>
-                {/* 오버레이 */}
                 <div
                   className="fixed inset-0 z-10"
                   onClick={() => setDropdownOpen(false)}

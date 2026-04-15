@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
@@ -42,7 +42,18 @@ export default function DashboardPage() {
   const [cases, setCases] = useState<CaseData[]>([]);
   const [casesTotal, setCasesTotal] = useState(0);
   const [creatingCase, setCreatingCase] = useState(false);
+  const creatingCaseRef = useRef(false); // 동기 가드 — useState는 비동기라 더블클릭 방지 불완전
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  const loadCases = async () => {
+    try {
+      const result = await listCases();
+      setCases(result.cases);
+      setCasesTotal(result.total);
+    } catch (e) {
+      console.error("케이스 목록 로드 실패:", e);
+    }
+  };
 
   useEffect(() => {
     const getUser = async () => {
@@ -55,18 +66,17 @@ export default function DashboardPage() {
       }
       setUser(session.user);
       setLoading(false);
-
-      // 케이스 목록 로드
-      try {
-        const result = await listCases();
-        setCases(result.cases);
-        setCasesTotal(result.total);
-      } catch (e) {
-        console.error("케이스 목록 로드 실패:", e);
-      }
+      await loadCases();
     };
     getUser();
   }, [router]);
+
+  // 탭/창 포커스 시 목록 자동 새로고침
+  useEffect(() => {
+    const onFocus = () => loadCases();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -74,17 +84,19 @@ export default function DashboardPage() {
   };
 
   const handleNewCase = async () => {
-    if (creatingCase) return;
+    // useRef 동기 가드: React state 업데이트는 비동기라 더블클릭/다중클릭 시 뚫릴 수 있음
+    if (creatingCaseRef.current) return;
+    creatingCaseRef.current = true;
     setCreatingCase(true);
+    console.trace("[SAMC] handleNewCase 호출됨 — 케이스 생성 시작");
     try {
       const newCase = await createCase("새 수입식품", "");
       router.push(`/cases/${newCase.id}/upload`);
     } catch (e) {
       console.error("케이스 생성 실패:", e);
-      // 폴백: 임시 ID로 진행
-      const caseId = `case-${Date.now()}`;
-      router.push(`/cases/${caseId}/upload`);
+      alert(`검역 건 생성에 실패했습니다.\n백엔드 서버가 실행 중인지 확인해주세요.\n\n오류: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
+      creatingCaseRef.current = false;
       setCreatingCase(false);
     }
   };
@@ -445,10 +457,10 @@ export default function DashboardPage() {
               성분 분석, 법령 검색, 라벨 검토까지 한 번에 처리합니다.
             </p>
             <button
-              onClick={handleNewCase}
+              onClick={() => scrollTo("cases-section")}
               className="flex items-center gap-2 mt-8 text-blue-600 font-semibold text-[14px] hover:text-blue-700 transition-colors group"
             >
-              시작하기
+              검역건 목록 보기
               <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
@@ -480,9 +492,8 @@ export default function DashboardPage() {
               return (
                 <div
                   key={i}
-                  className={`bg-white rounded-2xl border border-slate-200/60 p-6 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group animate-fade-up`}
+                  className={`bg-white rounded-2xl border border-slate-200/60 p-6 hover:shadow-lg hover:-translate-y-1 transition-all group animate-fade-up`}
                   style={{ animationDelay: `${0.1 + i * 0.1}s` }}
-                  onClick={handleNewCase}
                 >
                   <div className={`w-11 h-11 ${a.iconBg} rounded-xl flex items-center justify-center mb-4`}>
                     <Icon size={20} className={a.text} />
@@ -500,8 +511,7 @@ export default function DashboardPage() {
 
           {/* 5th feature — full width */}
           <div
-            className="mt-5 bg-white rounded-2xl border border-slate-200/60 p-6 hover:shadow-lg transition-all cursor-pointer group flex items-center gap-6 animate-fade-up delay-500"
-            onClick={handleNewCase}
+            className="mt-5 bg-white rounded-2xl border border-slate-200/60 p-6 hover:shadow-lg transition-all group flex items-center gap-6 animate-fade-up delay-500"
           >
             <div className="w-11 h-11 bg-rose-100 rounded-xl flex items-center justify-center shrink-0">
               <Languages size={20} className="text-rose-600" />
@@ -515,7 +525,7 @@ export default function DashboardPage() {
                 DeepL API 번역과 법적 표시사항 자동 적용을 포함합니다.
               </p>
             </div>
-            <ArrowRight size={18} className="text-slate-300 group-hover:text-rose-500 transition-colors shrink-0" />
+            <ArrowRight size={18} className="text-slate-200 shrink-0" />
           </div>
         </div>
       </section>
