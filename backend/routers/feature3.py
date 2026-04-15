@@ -22,7 +22,6 @@ router = APIRouter(prefix="/cases", tags=["feature3-required-docs"])
 STEP_KEY  = "A"
 STEP_NAME = "required_docs"
 
-# ── 지연 초기화 ───────────────────────────────────────────────────────
 _clients: dict = {}
 
 
@@ -37,24 +36,15 @@ def _get_clients() -> dict:
     return _clients
 
 
-# ── 요청 스키마 ──────────────────────────────────────────────────────
-
 class PatchFeature3Request(BaseModel):
     edit_reason: str = ""
 
 
-# ── 엔드포인트 ───────────────────────────────────────────────────────
-
 @router.get("/{case_id}/pipeline/feature/3")
 async def get_feature3(case_id: str):
-    """
-    feature2의 food_type을 읽어 f2_required_documents 조회.
-    pipeline_steps(step_key='A')에 결과 저장 후 반환.
-    """
     clients = _get_clients()
     sb      = clients["supabase"]
 
-    # 1. feature2 결과에서 food_type 추출
     f2 = (
         sb.table("pipeline_steps")
         .select("status, ai_result, final_result")
@@ -69,18 +59,13 @@ async def get_feature3(case_id: str):
             detail="기능2(식품유형 분류)가 완료되지 않았습니다. 먼저 기능2를 실행하세요.",
         )
 
-    # final_result 우선, 없으면 ai_result
     f2_result  = f2.data.get("final_result") or f2.data.get("ai_result") or {}
     food_type  = f2_result.get("food_type", "")
     is_alcohol = f2_result.get("is_alcohol", False)
 
     if not food_type:
-        raise HTTPException(
-            status_code=400,
-            detail="기능2 결과에 food_type이 없습니다.",
-        )
+        raise HTTPException(status_code=400, detail="기능2 결과에 food_type이 없습니다.")
 
-    # 2. 이미 저장된 feature3 결과가 있으면 반환
     existing = (
         sb.table("pipeline_steps")
         .select("*")
@@ -91,7 +76,6 @@ async def get_feature3(case_id: str):
     if existing.data:
         return existing.data[0]
 
-    # 3. f2_required_documents에서 해당 식품유형 + 공통 서류 조회
     specific = (
         sb.table("f2_required_documents")
         .select("doc_name, condition, is_mandatory, law_source, food_type")
@@ -105,7 +89,6 @@ async def get_feature3(case_id: str):
         .execute()
     )
 
-    # 주류이면 주류 관련 서류도 추가
     alcohol_docs = []
     if is_alcohol:
         alc = (
@@ -118,7 +101,6 @@ async def get_feature3(case_id: str):
 
     required_docs = (specific.data or []) + alcohol_docs + (common.data or [])
 
-    # 중복 제거 (doc_name 기준)
     seen: set = set()
     unique_docs = []
     for d in required_docs:
@@ -132,7 +114,6 @@ async def get_feature3(case_id: str):
         "required_docs": unique_docs,
     }
 
-    # 4. pipeline_steps 저장
     upsert_res = (
         sb.table("pipeline_steps")
         .upsert(
@@ -158,7 +139,6 @@ async def get_feature3(case_id: str):
 
 @router.patch("/{case_id}/pipeline/feature/3")
 async def confirm_feature3(case_id: str, body: PatchFeature3Request):
-    """담당자 확인 완료 → status = completed."""
     clients = _get_clients()
     sb      = clients["supabase"]
 

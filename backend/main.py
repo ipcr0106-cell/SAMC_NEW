@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import documents, feature2, feature3
+from routers import admin_laws, documents, feature3
 
 app = FastAPI(title="SAMC API", description="수입식품 검역 AI 플랫폼 백엔드", version="1.0")
 
@@ -14,8 +14,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(admin_laws.router)
 app.include_router(documents.router)
-app.include_router(feature2.router)
 app.include_router(feature3.router)
 
 @app.get("/")
