@@ -36,10 +36,10 @@ def _get_clients() -> dict:
     from sentence_transformers import SentenceTransformer
     from supabase import create_client
 
-    pinecone_key  = os.getenv("PINECONE_API_KEY")
+    pinecone_key = os.getenv("PINECONE_API_KEY")
     pinecone_host = os.getenv("PINECONE_HOST")
-    supabase_url  = os.getenv("SUPABASE_URL")
-    supabase_key  = os.getenv("SUPABASE_SERVICE_KEY")
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
 
     if not all([pinecone_key, pinecone_host, supabase_url, supabase_key]):
@@ -48,10 +48,10 @@ def _get_clients() -> dict:
         )
 
     pc = Pinecone(api_key=pinecone_key)
-    _clients["index"]    = pc.Index(host=pinecone_host)
+    _clients["index"] = pc.Index(host=pinecone_host)
     _clients["supabase"] = create_client(supabase_url, supabase_key)
-    _clients["model"]    = SentenceTransformer("intfloat/multilingual-e5-large")
-    _clients["claude"]   = Anthropic(api_key=anthropic_key)
+    _clients["model"] = SentenceTransformer("intfloat/multilingual-e5-large")
+    _clients["claude"] = Anthropic(api_key=anthropic_key)
     return _clients
 
 
@@ -62,11 +62,11 @@ _TIER_MAP = {"법률": 1, "시행령": 2, "시행규칙": 3, "고시": 4}
 @router.post("/upload")
 async def upload_law(
     file: UploadFile = File(..., description="법령 PDF 파일"),
-    law_name: str    = Form(..., description="법령명 (예: 식품등의 표시기준)"),
-    고시번호: str    = Form(..., description="고시번호 (예: 제2025-60호)"),
-    시행일: str      = Form(..., description="시행일 (YYYY-MM-DD)"),
-    tier: str        = Form("고시", description="법령 계층: 법률 | 시행령 | 시행규칙 | 고시"),
-    category: str    = Form("표시기준", description="카테고리 (자유 입력)"),
+    law_name: str = Form(..., description="법령명 (예: 식품등의 표시기준)"),
+    고시번호: str = Form(..., description="고시번호 (예: 제2025-60호)"),
+    시행일: str = Form(..., description="시행일 (YYYY-MM-DD)"),
+    tier: str = Form("고시", description="법령 계층: 법률 | 시행령 | 시행규칙 | 고시"),
+    category: str = Form("표시기준", description="카테고리 (자유 입력)"),
 ):
     """
     새 법령 PDF를 업로드하면 해당 법령만 재전처리.
@@ -75,16 +75,22 @@ async def upload_law(
     # 유효성 검사
     allowed_ext = {".pdf", ".hwpx"}
     if not file.filename or Path(file.filename).suffix.lower() not in allowed_ext:
-        raise HTTPException(status_code=400, detail="PDF 또는 HWPX 파일만 업로드 가능합니다.")
+        raise HTTPException(
+            status_code=400, detail="PDF 또는 HWPX 파일만 업로드 가능합니다."
+        )
 
     tier_int = _TIER_MAP.get(tier)
     if tier_int is None:
-        raise HTTPException(status_code=400, detail=f"tier는 {list(_TIER_MAP)} 중 하나여야 합니다.")
+        raise HTTPException(
+            status_code=400, detail=f"tier는 {list(_TIER_MAP)} 중 하나여야 합니다."
+        )
 
     try:
         enforce_date = date.fromisoformat(시행일)
     except ValueError:
-        raise HTTPException(status_code=400, detail="시행일 형식이 올바르지 않습니다 (YYYY-MM-DD).")
+        raise HTTPException(
+            status_code=400, detail="시행일 형식이 올바르지 않습니다 (YYYY-MM-DD)."
+        )
 
     # PDF를 임시 파일에 저장
     suffix = Path(file.filename).suffix
@@ -98,34 +104,37 @@ async def upload_law(
 
         # preprocess_laws 모듈 import (상대 경로)
         import sys
+
         sys.path.insert(0, str(Path(__file__).parent.parent / "db" / "feature4"))
         from preprocess_laws import preprocess_single_law
 
         result = preprocess_single_law(
-            pdf_path       = tmp_path,
-            law_name       = law_name,
-            고시번호       = 고시번호,
-            시행일         = enforce_date,
-            tier           = tier_int,
-            category       = category,
-            index          = clients["index"],
-            supabase_client= clients["supabase"],
-            model          = clients["model"],
-            claude_client  = clients["claude"],
+            pdf_path=tmp_path,
+            law_name=law_name,
+            고시번호=고시번호,
+            시행일=enforce_date,
+            tier=tier_int,
+            category=category,
+            index=clients["index"],
+            supabase_client=clients["supabase"],
+            model=clients["model"],
+            claude_client=clients["claude"],
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"전처리 실패: {e}")
     finally:
         tmp_path.unlink(missing_ok=True)
 
-    return JSONResponse({
-        "message":      f"'{law_name}' 전처리 완료",
-        "law_doc_id":   result["law_doc_id"],
-        "total_chunks": result["total_chunks"],
-        "article_cnt":  result["article_cnt"],
-        "table_cnt":    result["table_cnt"],
-        "image_cnt":    result["image_cnt"],
-    })
+    return JSONResponse(
+        {
+            "message": f"'{law_name}' 전처리 완료",
+            "law_doc_id": result["law_doc_id"],
+            "total_chunks": result["total_chunks"],
+            "article_cnt": result["article_cnt"],
+            "table_cnt": result["table_cnt"],
+            "image_cnt": result["image_cnt"],
+        }
+    )
 
 
 @router.get("")
@@ -136,7 +145,9 @@ async def list_laws():
         res = (
             clients["supabase"]
             .table("f4_law_documents")
-            .select("id, law_name, 고시번호, 시행일, 법령_tier, total_chunks, created_at")
+            .select(
+                "id, law_name, 고시번호, 시행일, 법령_tier, total_chunks, created_at"
+            )
             .order("법령_tier")
             .execute()
         )
