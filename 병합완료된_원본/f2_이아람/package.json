@@ -1,0 +1,10 @@
+{
+  "name": "samc-dev",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"API,WEB\" --prefix-colors \"cyan.bold,green.bold\" \"npm --prefix 테스트용_자료/식품유형 run dev\" \"npm --prefix frontend run dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

@@ -35,7 +35,7 @@ from xml.etree import ElementTree as ET
 
 import fitz  # pymupdf — 표 병합 셀 처리 + 이미지 페이지 렌더링
 import pdfplumber
-from anthropic import Anthropic
+from openai import OpenAI
 from dotenv import load_dotenv
 from pinecone import Pinecone
 from sentence_transformers import SentenceTransformer
@@ -364,7 +364,7 @@ def extract_tables_hwpx(hwpx_path: Path) -> list[str]:
 
 
 # =============================================================
-# HWPX 이미지 추출 (Claude Vision)
+# HWPX 이미지 추출 (AI Vision)
 # =============================================================
 
 # BinData/ 폴더 내 처리할 이미지 확장자와 최소 파일 크기
@@ -382,9 +382,9 @@ _HWPX_MEDIA_TYPE: dict[str, str] = {
 }
 
 
-def extract_image_pages_claude_hwpx(hwpx_path: Path, client: Anthropic) -> list[str]:
+def extract_image_pages_ai_hwpx(hwpx_path: Path, client: OpenAI) -> list[str]:
     """
-    HWPX BinData/ 폴더의 이미지를 Claude Vision으로 텍스트 추출.
+    HWPX BinData/ 폴더의 이미지를 OpenAI Vision으로 텍스트 추출.
 
     선택 기준: 50KB 이상 이미지만 처리 (작은 로고·아이콘 제외).
     PDF 버전(extract_image_pages_claude)과 동일한 프롬프트 사용.
@@ -409,19 +409,15 @@ def extract_image_pages_claude_hwpx(hwpx_path: Path, client: Anthropic) -> list[
             img_b64    = base64.b64encode(img_data).decode()
 
             try:
-                response = client.messages.create(
-                    model="claude-opus-4-6",
-                    max_tokens=1500,
+                response = client.chat.completions.create(
+                    model="gpt-5.4-nano",
+                    max_completion_tokens=1500,
                     messages=[{
                         "role": "user",
                         "content": [
                             {
-                                "type": "image",
-                                "source": {
-                                    "type":       "base64",
-                                    "media_type": media_type,
-                                    "data":       img_b64,
-                                },
+                                "type": "image_url",
+                                "image_url": {"url": f"data:{media_type};base64,{img_b64}"},
                             },
                             {
                                 "type": "text",
@@ -435,7 +431,7 @@ def extract_image_pages_claude_hwpx(hwpx_path: Path, client: Anthropic) -> list[
                         ],
                     }],
                 )
-                page_text = response.content[0].text.strip()
+                page_text = response.choices[0].message.content.strip()
                 if page_text:
                     extracted.append(f"[{Path(entry).name} 이미지 추출]\n{page_text}")
             except Exception as e:
@@ -466,12 +462,12 @@ def _extract_tables_auto(file_path: Path) -> list[str]:
     return []
 
 
-def _extract_images_auto(file_path: Path, client: Anthropic) -> list[str]:
+def _extract_images_auto(file_path: Path, client: OpenAI) -> list[str]:
     ext = file_path.suffix.lower()
     if ext == ".pdf":
-        return extract_image_pages_claude(file_path, client)
+        return extract_image_pages_ai(file_path, client)
     elif ext == ".hwpx":
-        return extract_image_pages_claude_hwpx(file_path, client)
+        return extract_image_pages_ai_hwpx(file_path, client)
     return []
 
 
@@ -505,26 +501,93 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
     return full_text
 
 
+def _merge_cross_page_tables(table_infos: list[tuple[int, str]]) -> list[str]:
+    """
+    연속 페이지에 걸쳐 끊긴 표 파편을 병합.
+
+    pymupdf는 페이지 단위로 표를 인식하므로, 페이지를 넘기는 표는
+    두 개의 파편으로 추출됨:
+      - 1페이지 파편: 헤더 + 일부 데이터 행  (정상)
+      - 2페이지 파편: 실제 헤더 없음 → pymupdf가 첫 번째 데이터 행을 헤더로 오인
+
+    병합 조건:
+      - 연속 페이지(page_num 차이 = 1)
+      - N페이지의 마지막 표와 N+1페이지의 첫 번째 표의 컬럼 수가 같음
+    """
+    if not table_infos:
+        return []
+
+    def parse(md: str) -> tuple[list[str], list[list[str]]]:
+        """마크다운 표 → (헤더 목록, 데이터 행 목록)"""
+        lines = [l.strip() for l in md.splitlines() if l.strip()]
+        if len(lines) < 2:
+            return [], []
+        headers = [h.strip() for h in lines[0].strip("|").split("|") if h.strip()]
+        data_rows = [
+            [c.strip() for c in l.strip("|").split("|")]
+            for l in lines[1:]
+            if not _SEP_LINE_RE.match(l)
+        ]
+        return headers, data_rows
+
+    def to_markdown(headers: list[str], data_rows: list[list[str]]) -> str:
+        col = len(headers)
+        lines = ["| " + " | ".join(headers) + " |", "|" + "---|" * col]
+        for row in data_rows:
+            padded = (row + [""] * col)[:col]
+            lines.append("| " + " | ".join(padded) + " |")
+        return "\n".join(lines)
+
+    result: list[str] = []
+    i = 0
+    while i < len(table_infos):
+        page_num, md = table_infos[i]
+        headers, data_rows = parse(md)
+
+        # 연속 페이지의 첫 번째 표가 같은 컬럼 수이면 병합
+        while (
+            i + 1 < len(table_infos)
+            and table_infos[i + 1][0] == page_num + 1  # 바로 다음 페이지
+        ):
+            next_page, next_md = table_infos[i + 1]
+            next_headers, next_data = parse(next_md)
+            if len(next_headers) != len(headers):
+                break  # 컬럼 수 다름 → 별개 표
+            # next_headers는 실제로는 첫 번째 데이터 행
+            data_rows.append(next_headers)
+            data_rows.extend(next_data)
+            page_num = next_page
+            i += 1
+
+        if headers:
+            result.append(to_markdown(headers, data_rows))
+        else:
+            result.append(md)  # 파싱 실패 시 원본 유지
+        i += 1
+
+    return result
+
+
 def extract_tables_pymupdf(pdf_path: Path) -> list[str]:
     """
     pymupdf로 표 추출 — pdfplumber 대비 병합 셀(rowSpan/colSpan) 처리 정확.
-    각 표를 마크다운 형식 텍스트로 반환.
+    페이지 넘김으로 끊긴 표는 _merge_cross_page_tables()로 병합.
     """
-    table_texts: list[str] = []
+    table_infos: list[tuple[int, str]] = []  # (page_num, markdown)
     doc = fitz.open(str(pdf_path))
 
-    for page in doc:
+    for page_num, page in enumerate(doc):
         try:
             tabs = page.find_tables()
             for tab in tabs:
                 md = tab.to_markdown()
                 if md and len(md.strip()) > 30:
-                    table_texts.append(md.strip())
+                    table_infos.append((page_num, md.strip()))
         except Exception:
             pass  # 표 인식 실패 페이지는 건너뜀
 
     doc.close()
-    return table_texts
+    return _merge_cross_page_tables(table_infos)
 
 
 # 이미지 페이지 판단 기준: 이미지 N개 이상 & 텍스트 M자 미만
@@ -532,9 +595,9 @@ _IMAGE_PAGE_MIN_IMAGES = 3
 _IMAGE_PAGE_MAX_TEXT   = 150
 
 
-def extract_image_pages_claude(pdf_path: Path, client: Anthropic) -> list[str]:
+def extract_image_pages_ai(pdf_path: Path, client: OpenAI) -> list[str]:
     """
-    이미지가 주를 이루는 페이지(도안, 서식 예시 등)를 Claude Vision으로 텍스트 추출.
+    이미지가 주를 이루는 페이지(도안, 서식 예시 등)를 OpenAI Vision으로 텍스트 추출.
 
     조건: 이미지 3개 이상 AND 텍스트 150자 미만인 페이지만 처리
     (텍스트가 충분한 페이지는 pdfplumber 결과로 충분)
@@ -554,19 +617,15 @@ def extract_image_pages_claude(pdf_path: Path, client: Anthropic) -> list[str]:
         img_b64 = base64.b64encode(pix.tobytes("png")).decode()
 
         try:
-            response = client.messages.create(
-                model="claude-opus-4-6",
-                max_tokens=1500,
+            response = client.chat.completions.create(
+                model="gpt-5.4-nano",
+                max_completion_tokens=1500,
                 messages=[{
                     "role": "user",
                     "content": [
                         {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/png",
-                                "data": img_b64,
-                            },
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/png;base64,{img_b64}"},
                         },
                         {
                             "type": "text",
@@ -580,7 +639,7 @@ def extract_image_pages_claude(pdf_path: Path, client: Anthropic) -> list[str]:
                     ],
                 }],
             )
-            page_text = response.content[0].text.strip()
+            page_text = response.choices[0].message.content.strip()
             if page_text:
                 extracted.append(f"[p.{page_num + 1} 이미지 추출]\n{page_text}")
         except Exception as e:
@@ -588,6 +647,69 @@ def extract_image_pages_claude(pdf_path: Path, client: Anthropic) -> list[str]:
 
     doc.close()
     return extracted
+
+
+# =============================================================
+# 표 row 단위 직렬화
+# =============================================================
+
+_SEP_LINE_RE = re.compile(r"^\|[-| ]+\|$")  # |---|---| 구분선 감지
+
+
+def _table_to_row_texts(markdown_table: str) -> list[str]:
+    """
+    마크다운 표를 row 단위 'col: val | col: val' 텍스트 목록으로 변환.
+
+    목적: 표 전체를 단일 청크로 저장하면 컬럼-값 관계가 소실됨.
+         row마다 컬럼 헤더를 붙여 저장해야 "공심환 → 공진단의 유사명칭" 같은
+         관계가 retrieval/keyword 추출 시 보존됨.
+
+    반환:
+      - 헤더 파싱 성공 + 데이터 row 2개 이상: row별 텍스트 목록
+      - 그 외(단일 row / 파싱 실패): [원본 markdown_table] — 손실 없이 원본 유지
+    """
+    lines = [l.strip() for l in markdown_table.splitlines() if l.strip()]
+    if len(lines) < 3:  # 헤더 + 구분선 + 데이터 1행 최소
+        return [markdown_table]
+
+    # 헤더 추출 (첫 번째 줄)
+    headers = [h.strip() for h in lines[0].strip("|").split("|")]
+    headers = [h for h in headers if h]  # 빈 헤더 제거
+    if not headers:
+        return [markdown_table]
+
+    # 데이터 행 (구분선 제외)
+    data_lines = [l for l in lines[1:] if not _SEP_LINE_RE.match(l)]
+    if not data_lines:
+        return [markdown_table]
+
+    row_texts: list[str] = []
+    for line in data_lines:
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        pairs = [
+            f"{headers[i]}: {cells[i]}"
+            for i in range(min(len(headers), len(cells)))
+            if cells[i] and cells[i] not in ("-", "&amp;#45;") and headers[i]
+        ]
+        if pairs:
+            row_texts.append(" | ".join(pairs))
+
+    # row가 1개 이하면 원본 그대로 (단일 행 표는 쪼갤 필요 없음)
+    return row_texts if len(row_texts) > 1 else [markdown_table]
+
+
+def _add_table_chunks(
+    chunks: list[dict],
+    table_texts: list[str],
+    law_name: str,
+    고시번호: str,
+    tier: int,
+) -> None:
+    """표 마크다운 목록을 row 단위로 변환해 chunks에 추가."""
+    for t in table_texts:
+        row_texts = _table_to_row_texts(t)
+        for row_text in row_texts:
+            chunks.append(_make_chunk(row_text, "별표/표", law_name, 고시번호, tier))
 
 
 # =============================================================
@@ -734,10 +856,124 @@ def upsert_to_pinecone(
 
 
 # =============================================================
+# 법령 고유 금지 마커 자동 추출 (extract_prohibited_keywords 동적 로드용)
+# =============================================================
+
+# 범용 금지 마커 — extract_prohibited_keywords._BASE_PROHIBITION_MARKERS와 동일한 패턴
+# unmatched 청크 선별(②단계)에 사용. 두 파일이 분리되어 있으므로 여기서도 선언.
+_BASE_PROHIBITION_MARKERS_FOR_HINTS = re.compile(
+    r"하여서는\s*아니\s*된다|사용해서는\s*아니\s*된다|하지\s*못한다"
+    r"|금지한다|금지된다|사용할\s*수\s*없다"
+    r"|인식할\s*우려가\s*있는|의약품으로\s*인식"
+    r"|부당한\s*표시\s*또는\s*광고|에\s*해당하는\s*표시"
+    r"|거짓[ㆍ·]\s*과장|과장.*표시|허위.*표시"
+    r"|소비자를\s*기만|오인[ㆍ·]\s*혼동|비방하는\s*표시|사행심을\s*조장"
+    r"|사용하지\s*못하도록\s*정한|없거나\s*사용하지\s*않았다|한약의\s*처방명"
+    r"|마약|대마|양귀비|아편|코카인|헤로인|모르핀|코데인|메스암페타민"
+    r"|이온수|이온음료|생명수"
+)
+
+
+_HINT_EXTRACT_PROMPT = """\
+아래 법령 조문에서 "금지 조문"을 탐지하기 위한 이 법령 고유의 키워드/어구를 추출해주세요.
+추출된 어구는 금지 관련 청크를 필터링하는 데 사용됩니다.
+
+[제외 — 이미 범용 필터에 포함됨]
+- "아니 된다", "하지 못한다", "금지한다", "사용할 수 없다", "인식할 우려가 있는",
+  "부당한 표시 또는 광고", "거짓·과장", "소비자를 기만", "오인·혼동", "비방하는 표시"
+
+[추출 대상]
+- 이 법령에만 있는 특수 용어, 물질명, 처방명, 금지 행위 묘사 어구
+- 금지 동사 없이 명칭만 나열된 별표·목록 청크도 포함됩니다 (예: 마약류 명칭 목록)
+  → 이런 경우 목록 항목 자체를 패턴으로 추출하세요
+- 예) 마약류 명칭 법령 → ["마약", "대마", "양귀비", "아편", "코카인"]
+- 예) 이온수 금지 법령 → ["이온수", "이온음료", "생명수"]
+- 예) 한약 처방명 법령 → ["한약의 처방명"]
+- 없으면 빈 배열 []
+
+[법령명]
+{law_name}
+
+[법령 조문 샘플 — 전체 균등 분포 + 범용 패턴 미탐지 청크 우선 포함]
+{text_sample}
+
+JSON 배열로만 응답하세요: ["어구1", "어구2", ...]
+"""
+
+
+def _extract_prohibition_hints(
+    chunks: list[dict],
+    law_name: str,
+    claude_client: OpenAI,
+) -> list[str]:
+    """
+    법령 청크에서 이 법령 고유의 금지 마커 키워드를 AI로 추출.
+    결과는 f4_law_documents.prohibition_hint_patterns에 저장되어
+    extract_prohibited_keywords.py가 동적으로 로드해 사용함.
+
+    누락 방지 3단계:
+      ① 균등 분포 샘플링 — 앞/중간/뒤 골고루 (앞부분만 보고 뒤쪽 별표 놓치는 문제 방지)
+      ② unmatched 청크 추가 샘플링 — 기본 마커에 안 걸리는 청크 집중 탐색
+      ③ 히트 검증 — 추출된 패턴이 실제 청크에 존재하는지 확인 후 미히트 제거
+    """
+    import json as _json
+    import re as _re
+
+    if not chunks:
+        return []
+
+    # ① 전체 균등 분포 샘플 (최대 20개)
+    step = max(1, len(chunks) // 20)
+    uniform_chunks = chunks[::step][:20]
+
+    # ② 기본 마커에 안 걸리는 청크 추가 샘플 (최대 10개) — 법령 고유 패턴 집중 탐색
+    #    이쪽 청크들이 힌트가 없으면 fallback에서도 놓칠 수 있는 영역
+    unmatched = [c for c in chunks if not _BASE_PROHIBITION_MARKERS_FOR_HINTS.search(c["text"])]
+    step_u = max(1, len(unmatched) // 10)
+    extra_chunks = unmatched[::step_u][:10]
+
+    # 중복 제거 (id 기준이 없으므로 text 기준)
+    seen: set[str] = set()
+    combined: list[dict] = []
+    for c in uniform_chunks + extra_chunks:
+        if c["text"] not in seen:
+            seen.add(c["text"])
+            combined.append(c)
+
+    sample = "\n\n".join(c["text"] for c in combined)[:6000]
+    prompt = _HINT_EXTRACT_PROMPT.format(law_name=law_name, text_sample=sample)
+
+    try:
+        resp = claude_client.chat.completions.create(
+            model="gpt-5.4-nano",
+            max_completion_tokens=512,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = resp.choices[0].message.content.strip()
+        match = _re.search(r"\[.*\]", raw, _re.DOTALL)
+        if not match:
+            return []
+        raw_hints = [h for h in _json.loads(match.group()) if isinstance(h, str) and h.strip()]
+
+        # ③ 히트 검증 — 추출된 패턴이 실제 청크 어딘가에 존재하는지 확인
+        all_text = " ".join(c["text"] for c in chunks)
+        verified = [h for h in raw_hints if h in all_text]
+        removed = len(raw_hints) - len(verified)
+        if removed:
+            print(f"  → 힌트 검증: {removed}개 미히트 패턴 제거 ({len(verified)}개 유지)")
+
+        return verified
+
+    except Exception as e:
+        print(f"  [경고] 금지 마커 힌트 추출 실패: {e}")
+        return []
+
+
+# =============================================================
 # Supabase 저장
 # =============================================================
 
-def save_law_document(supabase_client, law_info: dict, total_chunks: int) -> str:
+def save_law_document(supabase_client, law_info: dict, total_chunks: int, prohibition_hint_patterns: list[str] | None = None) -> str:
     """
     law_documents 테이블에 메타데이터 저장 후 UUID 반환.
     같은 law_name이 이미 있으면 갱신(upsert) — 재실행 시 중복 삽입 방지.
@@ -758,6 +994,8 @@ def save_law_document(supabase_client, law_info: dict, total_chunks: int) -> str
         "법령_tier":    law_info["tier"],
         "total_chunks": total_chunks,
     }
+    if prohibition_hint_patterns is not None:
+        payload["prohibition_hint_patterns"] = prohibition_hint_patterns
 
     if existing.data:
         doc_id = existing.data[0]["id"]
@@ -782,7 +1020,7 @@ def preprocess_single_law(
     index,
     supabase_client,
     model: SentenceTransformer,
-    claude_client: Anthropic,
+    claude_client: OpenAI,
 ) -> dict:
     """
     단일 법령 파일(PDF 또는 HWPX)을 전처리하여 Pinecone + Supabase에 적재.
@@ -808,22 +1046,43 @@ def preprocess_single_law(
 
     # 3. 표 추출 (PDF: pymupdf / HWPX: XML <hp:tbl> 파싱)
     table_texts = _extract_tables_auto(pdf_path)
-    for t in table_texts:
-        chunks.append(_make_chunk(t, "별표/표", law_name, 고시번호, tier))
+    _add_table_chunks(chunks, table_texts, law_name, 고시번호, tier)
 
     # 4. 이미지 추출 (PDF: pymupdf 렌더링 / HWPX: BinData/ 추출)
     image_texts = _extract_images_auto(pdf_path, claude_client)
     for t in image_texts:
         chunks.append(_make_chunk(t, "별표/도안", law_name, 고시번호, tier))
 
-    # 5. 임베딩
+    # 5. 기존 청크 수 조회 (Pinecone 고아 벡터 삭제용)
+    old_doc = (
+        supabase_client.table("f4_law_documents")
+        .select("total_chunks")
+        .eq("law_name", law_name)
+        .execute()
+    )
+    old_total = old_doc.data[0]["total_chunks"] if old_doc.data else 0
+
+    # 6. 임베딩
     vectors = embed_chunks(model, chunks)
 
-    # 6. Supabase 저장 (기존 법령이면 덮어씀)
-    law_doc_id = save_law_document(supabase_client, law_info, len(chunks))
+    # 7. 법령 고유 금지 마커 힌트 추출 (extract_prohibited_keywords에서 동적 로드용)
+    print(f"  → 법령 고유 금지 마커 힌트 추출 중...")
+    hint_patterns = _extract_prohibition_hints(chunks, law_name, claude_client)
+    print(f"  → 힌트 패턴 {len(hint_patterns)}개: {hint_patterns}")
 
-    # 7. Pinecone 적재 (결정적 ID → 자동 덮어쓰기)
+    # 8. Supabase 저장 (기존 법령이면 덮어씀)
+    law_doc_id = save_law_document(supabase_client, law_info, len(chunks), hint_patterns)
+
+    # 9. Pinecone 적재 (결정적 ID → 자동 덮어쓰기)
     upsert_to_pinecone(index, chunks, vectors, law_doc_id)
+
+    # 10. 고아 벡터 삭제 — 개정으로 청크 수가 줄었을 때 이전 벡터 제거
+    new_total = len(chunks)
+    if old_total > new_total:
+        orphan_ids = [_make_vector_id(law_name, i) for i in range(new_total, old_total)]
+        for i in range(0, len(orphan_ids), 1000):
+            index.delete(ids=orphan_ids[i : i + 1000])
+        print(f"  → 고아 벡터 {len(orphan_ids)}개 삭제 (청크 {old_total} → {new_total})")
 
     return {
         "law_doc_id":   law_doc_id,
@@ -840,8 +1099,8 @@ def preprocess_single_law(
 
 def main() -> None:
     # --- 환경변수 확인 ---
-    pinecone_key  = os.getenv("PINECONE_API_KEY")
-    pinecone_host = os.getenv("PINECONE_HOST")
+    pinecone_key  = os.getenv("F4_PINECONE_API_KEY")
+    pinecone_host = os.getenv("F4_PINECONE_HOST")
     supabase_url  = os.getenv("SUPABASE_URL")
     supabase_key  = os.getenv("SUPABASE_SERVICE_KEY")
 
@@ -855,7 +1114,7 @@ def main() -> None:
     pc            = Pinecone(api_key=pinecone_key)
     supabase      = create_client(supabase_url, supabase_key)
     model         = SentenceTransformer(EMBED_MODEL)
-    claude_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    claude_client = OpenAI(api_key=os.getenv("F4_OPENAI_API_KEY"))
 
     # 인덱스는 대시보드에서 이미 생성됨 — host로 직접 연결
     index = pc.Index(host=pinecone_host)
@@ -883,27 +1142,31 @@ def main() -> None:
         # 3. 표 추출 (PDF: pymupdf / HWPX: XML <hp:tbl> 파싱)
         print("  3) 표 추출...")
         table_texts = _extract_tables_auto(file_path)
-        for t in table_texts:
-            chunks.append(_make_chunk(t, "별표/표", law_info["law_name"], law_info["고시번호"], tier))
+        _add_table_chunks(chunks, table_texts, law_info["law_name"], law_info["고시번호"], tier)
 
         # 4. 이미지 추출 (PDF: pymupdf 렌더링 / HWPX: BinData/ 추출)
-        print("  4) 이미지 추출 (Claude Vision)...")
+        print("  4) 이미지 추출 (AI Vision)...")
         image_texts = _extract_images_auto(file_path, claude_client)
         for t in image_texts:
             chunks.append(_make_chunk(t, "별표/도안", law_info["law_name"], law_info["고시번호"], tier))
 
         print(f"     → 조문 {article_cnt}개 + 표 {len(table_texts)}개 + 이미지 {len(image_texts)}개 = 총 {len(chunks)}개 청크")
 
-        # 3. 임베딩
-        print("  3) 임베딩 생성...")
+        # 5. 임베딩
+        print("  5) 임베딩 생성...")
         vectors = embed_chunks(model, chunks)
 
-        # 4. Supabase 메타데이터 저장
-        print("  4) Supabase 저장...")
-        law_doc_id = save_law_document(supabase, law_info, len(chunks))
+        # 6. 법령 고유 금지 마커 힌트 추출
+        print("  6) 금지 마커 힌트 추출 (AI)...")
+        hint_patterns = _extract_prohibition_hints(chunks, law_info["law_name"], claude_client)
+        print(f"     → 힌트 패턴 {len(hint_patterns)}개: {hint_patterns}")
 
-        # 5. Pinecone 적재
-        print("  5) Pinecone 적재...")
+        # 7. Supabase 메타데이터 저장
+        print("  7) Supabase 저장...")
+        law_doc_id = save_law_document(supabase, law_info, len(chunks), hint_patterns)
+
+        # 8. Pinecone 적재
+        print("  8) Pinecone 적재...")
         upsert_to_pinecone(index, chunks, vectors, law_doc_id)
 
         print(f"  ✓ 완료 (law_doc_id: {law_doc_id})")

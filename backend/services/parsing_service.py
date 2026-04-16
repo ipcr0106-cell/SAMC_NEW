@@ -41,12 +41,12 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────
 
 # >>> OPENAI TEMP — 최종 통합 시 제거
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+OPENAI_API_KEY = os.getenv("F0_OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("F0_OPENAI_MODEL", "gpt-4o")
 # <<< OPENAI TEMP
 
 # --- CLAUDE ORIGINAL (최종 통합 시 사용) ---
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_API_KEY = os.getenv("F0_ANTHROPIC_API_KEY", "")
 CLAUDE_MODEL_NAME = "claude-sonnet-4-20250514"
 # -------------------------------------------
 

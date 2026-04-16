@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-load_dotenv(Path(__file__).parent.parent / "db" / "feature4" / ".env")
+load_dotenv()  # backend/.env 통합 사용
 
 router = APIRouter(prefix="/admin/laws", tags=["admin-laws"])
 
@@ -27,20 +27,20 @@ _clients: dict = {}
 
 
 def _get_clients() -> dict:
-    """Pinecone / Supabase / SentenceTransformer / Anthropic 클라이언트 싱글톤."""
+    """Pinecone / Supabase / SentenceTransformer / OpenAI 클라이언트 싱글톤."""
     if _clients:
         return _clients
 
-    from anthropic import Anthropic
+    from openai import OpenAI
     from pinecone import Pinecone
     from sentence_transformers import SentenceTransformer
     from supabase import create_client
 
-    pinecone_key  = os.getenv("PINECONE_API_KEY")
-    pinecone_host = os.getenv("PINECONE_HOST")
+    pinecone_key  = os.getenv("F4_PINECONE_API_KEY")
+    pinecone_host = os.getenv("F4_PINECONE_HOST")
     supabase_url  = os.getenv("SUPABASE_URL")
     supabase_key  = os.getenv("SUPABASE_SERVICE_KEY")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    openai_key = os.getenv("F4_OPENAI_API_KEY")
 
     if not all([pinecone_key, pinecone_host, supabase_url, supabase_key]):
         raise RuntimeError(
@@ -51,7 +51,7 @@ def _get_clients() -> dict:
     _clients["index"]    = pc.Index(host=pinecone_host)
     _clients["supabase"] = create_client(supabase_url, supabase_key)
     _clients["model"]    = SentenceTransformer("intfloat/multilingual-e5-large")
-    _clients["claude"]   = Anthropic(api_key=anthropic_key)
+    _clients["claude"]   = OpenAI(api_key=openai_key)
     return _clients
 
 
@@ -118,13 +118,55 @@ async def upload_law(
     finally:
         tmp_path.unlink(missing_ok=True)
 
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent / "db" / "feature4"))
+    from extract_prohibited_keywords import extract_for_law
+    from extract_image_violation_types import extract_image_types_for_law
+
+    # 법령 업데이트 시 이미지 분석 프롬프트 캐시 무효화
+    from routers.feature4 import _invalidate_prompt_cache
+    _invalidate_prompt_cache()
+
+    keyword_count = 0
+    img_types_added = 0
+    img_types_supplemented = 0
+
+    # 금지 표현 키워드 추출 (업로드된 모든 법령 대상)
+    try:
+        print(f"[자동 트리거] '{law_name}' 금지 표현 추출 시작...")
+        keyword_count = extract_for_law(
+            law_name = law_name,
+            index    = clients["index"],
+            supabase = clients["supabase"],
+            claude   = clients["claude"],
+        )
+    except Exception as e:
+        print(f"[경고] 금지 표현 추출 실패 (법령 전처리는 완료됨): {e}")
+
+    # 이미지 위반 유형 추출 (신규·보완 항목 → is_active=False로 저장, 관리자 검토 대기)
+    try:
+        print(f"[자동 트리거] '{law_name}' 이미지 위반 유형 추출 시작...")
+        img_result = extract_image_types_for_law(
+            law_name = law_name,
+            index    = clients["index"],
+            supabase = clients["supabase"],
+            claude   = clients["claude"],
+        )
+        img_types_added        = img_result["added_active"]
+        img_types_supplemented = img_result["supplemented"]
+    except Exception as e:
+        print(f"[경고] 이미지 위반 유형 추출 실패 (법령 전처리는 완료됨): {e}")
+
     return JSONResponse({
-        "message":      f"'{law_name}' 전처리 완료",
-        "law_doc_id":   result["law_doc_id"],
-        "total_chunks": result["total_chunks"],
-        "article_cnt":  result["article_cnt"],
-        "table_cnt":    result["table_cnt"],
-        "image_cnt":    result["image_cnt"],
+        "message":                  f"'{law_name}' 전처리 완료",
+        "law_doc_id":               result["law_doc_id"],
+        "total_chunks":             result["total_chunks"],
+        "article_cnt":              result["article_cnt"],
+        "table_cnt":                result["table_cnt"],
+        "image_cnt":                result["image_cnt"],
+        "keywords_extracted":       keyword_count,
+        "image_types_pending":      img_types_added,       # 관리자 검토 대기 중인 신규 유형 수
+        "image_types_supplemented": img_types_supplemented, # 기존 유형에 세부항목 보완된 수
     })
 
 
@@ -143,3 +185,63 @@ async def list_laws():
         return {"laws": res.data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"조회 실패: {e}")
+
+
+@router.get("/image-violation-types")
+async def list_image_violation_types(active_only: bool = False):
+    """
+    이미지 위반 유형 목록 반환.
+    - active_only=false (기본): 전체 반환 (활성 + 검토 보류)
+    - active_only=true: 활성(is_active=True) 유형만 반환
+    """
+    try:
+        clients = _get_clients()
+        query = (
+            clients["supabase"]
+            .table("f4_image_violation_types")
+            .select("id, type_name, sub_items, default_severity, law_ref, source, is_active, review_note, created_at")
+            .order("created_at")
+        )
+        if active_only:
+            query = query.eq("is_active", True)
+        res = query.execute()
+
+        data  = res.data or []
+        total    = len(data)
+        active   = sum(1 for r in data if r["is_active"])
+        pending  = total - active
+
+        return {
+            "total":   total,
+            "active":  active,
+            "pending": pending,
+            "types":   data,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"조회 실패: {e}")
+
+
+@router.patch("/image-violation-types/{type_id}/activate")
+async def activate_image_violation_type(type_id: str):
+    """검토 보류(is_active=False) 유형을 수동으로 활성화."""
+    try:
+        clients = _get_clients()
+        res = (
+            clients["supabase"]
+            .table("f4_image_violation_types")
+            .update({"is_active": True, "review_note": "관리자 수동 활성화", "updated_at": "now()"})
+            .eq("id", type_id)
+            .execute()
+        )
+        if not res.data:
+            raise HTTPException(status_code=404, detail="해당 유형을 찾을 수 없습니다.")
+
+        # 프롬프트 캐시 무효화 (활성화된 유형이 즉시 반영되도록)
+        from routers.feature4 import _invalidate_prompt_cache
+        _invalidate_prompt_cache()
+
+        return {"message": "활성화 완료", "type": res.data[0]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"활성화 실패: {e}")

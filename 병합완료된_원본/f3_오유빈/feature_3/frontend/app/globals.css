@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Lyria Studio 커스텀 스타일 */
+.card-shadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 6px 16px rgba(0, 0, 0, 0.04);
+}
+
+.card-shadow:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+/* ══════════════════════════════════════════════════════════
+   인쇄 전용 스타일 (PDF 저장용 레포트)
+   전략: @page margin을 0으로 초기화하고 .report-modal-content padding으로
+         여백 직접 제어. 브라우저 "여백" 설정 무관하게 일관된 결과 보장.
+   ══════════════════════════════════════════════════════════ */
+
+.print-only { display: none; }
+
+/* ─ @page margin: 매 페이지 상하좌우 여백 보장 (표준 방식) ─ */
+@page {
+  size: A4;
+  margin: 20mm 18mm 20mm 18mm;
+}
+
+@media print {
+  /* ─ 0단계: 브라우저 리셋 ─ */
+  html, body {
+    background: white !important;
+    color: #222 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 11.5pt;
+    line-height: 1.65 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    overflow: visible !important;
+  }
+
+  /* ─ 1단계: 모달 외 영역 숨김 ─ */
+  body > *:not(.report-modal-overlay) {
+    display: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-hidden,
+  .print-hidden * {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* ─ 2단계: 모달 오버레이 인쇄 페이지로 펼침 ─ */
+  .report-modal-overlay {
+    position: static !important;
+    display: block !important;
+    background: white !important;
+    inset: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    width: 100% !important;
+  }
+
+  /* ─ 3단계: 콘텐츠 컨테이너 (padding은 @page margin과 분리) ─ */
+  .report-modal-content {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;  /* 페이지 여백은 @page margin이 담당 */
+    max-width: 100% !important;
+    max-height: none !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    position: static !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ─ 4단계: 섹션 간 리듬 ─ */
+  .report-modal-content section {
+    margin-bottom: 8mm !important;
+    box-sizing: border-box !important;
+  }
+
+  .report-modal-content section:first-of-type {
+    margin-top: 0 !important;
+  }
+
+  /* ─ 5단계: 폰트 크기 상향 ─ */
+  .report-modal-content h1 { font-size: 22pt !important; line-height: 1.3 !important; }
+  .report-modal-content h2 { font-size: 13pt !important; line-height: 1.4 !important; }
+  .report-modal-content h3 { font-size: 12.5pt !important; line-height: 1.4 !important; }
+  .report-modal-content p,
+  .report-modal-content td,
+  .report-modal-content th,
+  .report-modal-content li { font-size: 11pt !important; }
+  .report-modal-content .text-xs,
+  .report-modal-content .text-\[10px\],
+  .report-modal-content .text-\[11px\] { font-size: 10pt !important; }
+
+  /* ─ 6단계: 페이지 브레이크 전략 ─ */
+  .report-modal-content section {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+  .report-modal-content h1,
+  .report-modal-content h2,
+  .report-modal-content h3 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+  .report-modal-content li {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 5mm !important;
+    padding: 5mm !important;
+  }
+  .report-modal-content ol,
+  .report-modal-content ul,
+  .report-modal-content table {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+  .report-modal-content tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* ─ 7단계: 디자인 ─ */
+  .report-modal-content h2 {
+    color: #111 !important;
+    font-weight: 700 !important;
+    border-bottom: 1.5pt solid #333 !important;
+    padding-bottom: 2mm !important;
+    letter-spacing: 0.5pt !important;
+  }
+
+  .report-modal-content td,
+  .report-modal-content th {
+    padding: 3.5mm 4mm !important;
+  }
+
+  .report-modal-content li > div > div {
+    margin-top: 3mm !important;
+  }
+}

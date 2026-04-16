@@ -70,9 +70,9 @@ _COMBINED_PROMPT = """이 수출국 라벨 이미지를 분석해서 아래 두 
 
 async def _analyze_label(image_bytes: bytes) -> dict[str, Any]:
     """Vision API로 bbox 검출 + 텍스트 추출 동시 수행."""
-    api_key = os.getenv("OPENAI_API_KEY", "")
+    api_key = os.getenv("F0_OPENAI_API_KEY", "")
     if not api_key:
-        logger.warning("OPENAI_API_KEY 없음 — 라벨 분석 스킵")
+        logger.warning("F0_OPENAI_API_KEY 없음 — 라벨 분석 스킵")
         return {"bbox": {"found": False}, "texts": {}}
 
     try:
@@ -83,7 +83,7 @@ async def _analyze_label(image_bytes: bytes) -> dict[str, Any]:
 
     b64 = base64.b64encode(image_bytes).decode("utf-8")
     data_url = f"data:image/png;base64,{b64}"
-    model = os.getenv("OPENAI_MODEL", "gpt-4o")
+    model = os.getenv("F0_OPENAI_MODEL", "gpt-4o")
 
     client = AsyncOpenAI(api_key=api_key)
     try:

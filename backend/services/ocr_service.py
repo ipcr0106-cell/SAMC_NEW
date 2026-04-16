@@ -28,8 +28,8 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-PARSER_SERVICE_URL = os.getenv("PARSER_SERVICE_URL", "http://localhost:3001")
-PARSER_SERVICE_TOKEN = os.getenv("PARSER_SERVICE_TOKEN", "")
+PARSER_SERVICE_URL = os.getenv("F0_PARSER_SERVICE_URL", "http://localhost:3001")
+PARSER_SERVICE_TOKEN = os.getenv("F0_PARSER_SERVICE_TOKEN", "")
 
 
 async def extract_text_from_file(
@@ -236,9 +236,9 @@ async def _extract_from_image(image_bytes: bytes, mime_type: str) -> str:
 
 async def _extract_from_image_openai(image_bytes: bytes, media_type: str) -> str:
     """OpenAI gpt-4o Vision으로 이미지 텍스트 추출 — 개발/테스트용 임시 구현."""
-    openai_api_key = os.getenv("OPENAI_API_KEY", "")
+    openai_api_key = os.getenv("F0_OPENAI_API_KEY", "")
     if not openai_api_key:
-        logger.error("OPENAI_API_KEY가 설정되지 않았습니다.")
+        logger.error("F0_OPENAI_API_KEY가 설정되지 않았습니다.")
         return ""
 
     try:
@@ -249,7 +249,7 @@ async def _extract_from_image_openai(image_bytes: bytes, media_type: str) -> str
 
     b64_data = base64.b64encode(image_bytes).decode("utf-8")
     data_url = f"data:{media_type};base64,{b64_data}"
-    model = os.getenv("OPENAI_MODEL", "gpt-4o")
+    model = os.getenv("F0_OPENAI_MODEL", "gpt-4o")
 
     try:
         client = AsyncOpenAI(api_key=openai_api_key)
@@ -280,9 +280,9 @@ async def _extract_from_image_openai(image_bytes: bytes, media_type: str) -> str
 
 async def _extract_from_image_claude(image_bytes: bytes, media_type: str) -> str:
     """Claude Vision으로 이미지 텍스트 추출 — 최종 프로덕션용."""
-    anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "")
+    anthropic_api_key = os.getenv("F0_ANTHROPIC_API_KEY", "")
     if not anthropic_api_key:
-        logger.error("ANTHROPIC_API_KEY가 설정되지 않았습니다.")
+        logger.error("F0_ANTHROPIC_API_KEY가 설정되지 않았습니다.")
         return ""
 
     b64_data = base64.b64encode(image_bytes).decode("utf-8")

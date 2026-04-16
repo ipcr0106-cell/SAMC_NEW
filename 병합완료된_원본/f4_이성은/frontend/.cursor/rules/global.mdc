@@ -1,0 +1,40 @@
+---
+description: SAMC 프로젝트 전역 규칙. 모든 작업에 적용.
+---
+
+# SAMC 프로젝트 — 전역 규칙
+
+## 기본 원칙
+
+- 담당 폴더 밖 파일은 절대 수정하지 않는다
+- 공용 파일(app/layout.tsx, services/apiClient.ts 등) 수정 금지
+- 새 파일 생성 전 먼저 계획을 설명하고 승인 받기
+- 파일 이동·이름 변경 금지 (다른 팀원 import 경로 깨짐)
+- 작업 전 반드시 변경할 파일 목록을 먼저 알려줄 것
+
+## 기술 스택
+
+- Next.js 14 App Router
+- TypeScript 필수. `any` 타입 사용 금지 → `unknown` 또는 구체 타입 사용
+- Tailwind CSS
+- Supabase Auth (인증)
+
+## 폴더 역할 원칙
+
+- `app/` : 라우팅 연결만. 실제 기능 구현은 반드시 `features/` 에서
+- `features/{기능명}/` : 각 기능의 모든 코드 (컴포넌트, API 호출, 훅, 타입)
+- `components/common/` : 여러 기능이 공동으로 쓰는 UI 부품만
+- `services/` : 공통 API 클라이언트, 인증 토큰 처리
+- `types/` : 팀원 간 공유되는 공통 타입 (수정 시 전원 합의 필수)
+
+## API 호출 규칙
+
+- 기능별 API 함수는 반드시 `features/{기능명}/api/` 안에만 작성
+- `services/apiClient.ts` 의 axios 인스턴스를 import해서 사용
+- 컴포넌트 안에서 직접 fetch() 호출 금지
+
+## 커밋 규칙
+
+- 형식: `feat: 설명` / `fix: 설명` / `chore: 설명` / `refactor: 설명`
+- 커밋 전 변경된 파일 목록 반드시 확인
+- .env, .env.local 절대 커밋 금지

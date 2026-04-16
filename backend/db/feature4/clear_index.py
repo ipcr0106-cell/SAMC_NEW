@@ -8,8 +8,8 @@ load_dotenv()
 import os
 from pinecone import Pinecone
 
-pc    = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-index = pc.Index(host=os.getenv("PINECONE_HOST"))
+pc    = Pinecone(api_key=os.getenv("F4_PINECONE_API_KEY"))
+index = pc.Index(host=os.getenv("F4_PINECONE_HOST"))
 
 index.delete(delete_all=True)
 print("Pinecone 인덱스 초기화 완료")

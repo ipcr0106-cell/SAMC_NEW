@@ -1,0 +1,407 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Apple SD Gothic Neo', '맑은 고딕', sans-serif;
+  background: #f4f6fb;
+  color: #222;
+  min-height: 100vh;
+}
+
+/* ── 헤더 ── */
+.top-bar {
+  background: #fff;
+  border-bottom: 1px solid #e2e8f5;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.logo { font-size: 17px; font-weight: 700; color: #1a2340; }
+.tab-nav { display: flex; gap: 4px; }
+.tab-btn {
+  padding: 6px 20px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #7c8db5;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tab-btn.active { background: #eef2fb; color: #3d5a99; font-weight: 700; }
+.btn-reset-all {
+  padding: 6px 14px;
+  background: #fff0f0;
+  color: #c0392b;
+  border: 1px solid #f5b7b1;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-reset-all:hover { background: #fde8e8; }
+
+/* ── 레이아웃 ── */
+.page { display: none; padding: 28px 20px; max-width: 760px; margin: 0 auto; }
+.page.active { display: block; }
+
+/* ── 카드 ── */
+.card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.step-title { font-size: 15px; font-weight: 700; color: #1a2340; }
+.step-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7c8db5;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+/* ── 버튼 ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+.btn-primary   { background: #3d5a99; color: #fff; }
+.btn-primary:hover { background: #2e4480; }
+.btn-primary:disabled { background: #b0bcd6; cursor: not-allowed; }
+.btn-outline   { background: #fff; color: #3d5a99; border: 2px solid #3d5a99; }
+.btn-outline:hover { background: #eef2fb; }
+.btn-ghost     { background: #f4f6fb; color: #5a6e9e; border: 1px solid #dde4f0; }
+.btn-ghost:hover { background: #e8ecf5; }
+.btn-danger    { background: #fff0f0; color: #c0392b; border: 1px solid #f5b7b1; }
+.btn-danger:hover { background: #fde8e8; }
+.btn-sm        { padding: 5px 11px; font-size: 12px; }
+.btn-full      { width: 100%; justify-content: center; margin-top: 14px; }
+
+/* ── 드롭존 ── */
+.drop-zone {
+  border: 2px dashed #c5d0e8;
+  border-radius: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: #fafbff;
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: #3d5a99; background: #eef2fb; }
+.drop-zone.locked { pointer-events: none; opacity: 0.5; }
+.drop-icon { font-size: 32px; margin-bottom: 10px; }
+.drop-main { font-size: 15px; font-weight: 600; color: #1a2340; margin-bottom: 6px; }
+.drop-sub  { font-size: 13px; color: #7c8db5; }
+.drop-limit { font-size: 12px; color: #a0aec0; margin-top: 8px; }
+
+/* ── 파일 목록 ── */
+.file-list { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #f8faff;
+  border: 1px solid #e2e8f5;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.file-name  { flex: 1; color: #1a2340; font-weight: 500; word-break: break-all; }
+.file-size  { color: #a0aec0; font-size: 12px; white-space: nowrap; }
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-blue   { background: #dde8ff; color: #2a45a0; }
+.badge-green  { background: #e8f5e9; color: #2e7d32; }
+.badge-orange { background: #fff3e0; color: #e65100; border: 1px solid #ffccbc; }
+.badge-red    { background: #fde8e8; color: #c0392b; }
+.badge-gray   { background: #f0f0f0; color: #666; }
+.hwp-warn {
+  font-size: 12px;
+  color: #e65100;
+  background: #fff3e0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-top: 4px;
+}
+
+/* ── 알림 박스 ── */
+.alert {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.alert-warn   { background: #fff8e1; color: #795548; border: 1px solid #ffe082; }
+.alert-error  { background: #fde8e8; color: #c0392b; border: 1px solid #f5b7b1; }
+.alert-info   { background: #eef2fb; color: #3d5a99; border: 1px solid #c5d0e8; }
+.alert-success{ background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+
+/* ── 제품명 결과 ── */
+.product-result {
+  background: #f8faff;
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 14px;
+}
+.product-field {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px 0;
+  font-size: 14px;
+}
+.f-label { color: #7c8db5; }
+.f-value { font-weight: 600; color: #1a2340; }
+.editable-input {
+  border: 1px solid #c5d0e8;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a2340;
+  background: #fff;
+  width: 100%;
+}
+
+/* ── 로딩 ── */
+.loading-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid #f0f3fa;
+  font-size: 14px;
+  color: #7c8db5;
+}
+.loading-row:last-child { border-bottom: none; }
+.loading-row.done   { color: #2e7d32; }
+.loading-row.active { color: #3d5a99; font-weight: 600; }
+.spin {
+  width: 18px; height: 18px;
+  border: 2px solid #dde4f0;
+  border-top-color: #3d5a99;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── 법령 결과 카드 ── */
+.law-card {
+  border: 1px solid #e2e8f5;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 12px;
+}
+.law-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.law-name { font-size: 14px; font-weight: 700; color: #1a2340; }
+.score-bar {
+  height: 5px;
+  background: #e2e8f5;
+  border-radius: 3px;
+  margin: 6px 0;
+  overflow: hidden;
+}
+.score-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+.score-good { background: #3d5a99; }
+.score-low  { background: #e67e22; }
+.law-summary { font-size: 13px; color: #1a2340; font-weight: 500; margin-bottom: 6px; }
+.law-reason  { font-size: 13px; color: #5a6e9e; line-height: 1.6; margin-bottom: 8px; }
+.law-meta    { font-size: 11px; color: #a0aec0; }
+
+/* ── 제조공정 탭 ── */
+.pd-drop-zone {
+  border: 2px dashed #c8d4f0;
+  border-radius: 12px;
+  padding: 36px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  background: #f8f9ff;
+}
+.pd-drop-zone:hover, .pd-drop-zone.drag-over { border-color: #3d5a99; background: #eef2fb; }
+.pd-drop-zone.has-file { border-color: #3d5a99; border-style: solid; background: #eef2fb; }
+.pd-drop-icon  { font-size: 36px; margin-bottom: 10px; }
+.pd-drop-main  { font-size: 15px; font-weight: 600; color: #1a2340; margin-bottom: 6px; }
+.pd-drop-sub   { font-size: 13px; color: #7c8db5; margin-bottom: 4px; }
+.pd-drop-limit { font-size: 12px; color: #a0aec0; }
+
+/* ── 공정 흐름 ── */
+.pd-flow { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 8px; }
+.pd-step-row { display: flex; align-items: center; gap: 12px; }
+.pd-step-num {
+  width: 28px; height: 28px;
+  background: #3d5a99; color: #fff;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+.pd-step-name { font-size: 15px; font-weight: 600; color: #1a2340; }
+.pd-step-ko { font-size: 13px; font-weight: 400; color: #7c8db5; margin-left: 5px; }
+.pd-connector { width: 2px; height: 22px; background: #c8d4f0; margin-left: 13px; }
+
+/* 분기/병렬 공정 */
+.pd-branch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 40px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+.pd-branch-icon { font-size: 15px; color: #9aabd8; flex-shrink: 0; line-height: 1; }
+.pd-branch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eef2fb;
+  border: 1px solid #c8d4f0;
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3d5a99;
+}
+.pd-branch-chip .pd-step-ko { font-size: 12px; color: #8899c8; }
+
+/* ── 최종 결과 ── */
+.verdict-box {
+  background: #eef2fb;
+  border-left: 4px solid #3d5a99;
+  border-radius: 0 12px 12px 0;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+.verdict-type  { font-size: 24px; font-weight: 700; color: #1a2340; margin-bottom: 4px; }
+.verdict-sub   { font-size: 13px; color: #5a6e9e; }
+.doc-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f3fa;
+  font-size: 14px;
+}
+.doc-item:last-child { border-bottom: none; }
+.doc-name { font-weight: 600; color: #1a2340; }
+.doc-desc { font-size: 12px; color: #7c8db5; margin-top: 3px; }
+
+/* ── 확인 배지 ── */
+.confirmed-badge {
+  text-align: center;
+  padding: 16px;
+  background: #e8f5e9;
+  border-radius: 10px;
+  color: #2e7d32;
+  font-weight: 600;
+  font-size: 15px;
+  margin-top: 14px;
+}
+
+/* ── 수동 입력 폼 ── */
+.manual-form { margin-top: 14px; }
+.manual-form input, .manual-form select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #c5d0e8;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1a2340;
+  margin-bottom: 10px;
+}
+
+/* ── 모달 ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: #fff;
+  border-radius: 14px;
+  padding: 24px;
+  max-width: 560px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.modal-title { font-size: 15px; font-weight: 700; color: #1a2340; margin-bottom: 12px; }
+.modal-body  { font-size: 13px; color: #444; line-height: 1.8; white-space: pre-wrap; }
+.modal-close {
+  display: block;
+  margin-top: 16px;
+  width: 100%;
+  padding: 10px;
+  background: #f4f6fb;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #5a6e9e;
+}
+
+/* ── 유틸 ── */
+.hidden  { display: none !important; }
+.mt-8    { margin-top: 8px; }
+.mt-12   { margin-top: 12px; }
+.flex    { display: flex; }
+.gap-8   { gap: 8px; }
+.flex-1  { flex: 1; }
+.section-divider { height: 1px; background: #f0f3fa; margin: 16px 0; }
+.query-pill {
+  display: inline-block;
+  background: #eef2fb;
+  color: #3d5a99;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  margin-bottom: 14px;
+  word-break: break-all;
+}
+.coverage-note { font-size: 12px; color: #a0aec0; margin-top: 4px; }

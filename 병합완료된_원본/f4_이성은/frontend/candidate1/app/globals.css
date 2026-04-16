@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans KR", sans-serif;
+
+  /* SAMC 브랜드 네이비 */
+  --color-navy-50:  #EEF4FF;
+  --color-navy-100: #D9E8FF;
+  --color-navy-200: #B3CEFF;
+  --color-navy-600: #1E4B8F;
+  --color-navy-700: #1B3A6B;
+  --color-navy-800: #142D55;
+  --color-navy-900: #0E1F3B;
+
+  /* 인터랙티브 블루 (LBox 스타일) */
+  --color-accent-500: #3B82F6;
+  --color-accent-600: #2563EB;
+  --color-accent-700: #1D4ED8;
+
+  /* 기능별 색상 */
+  --color-f1: #3B82F6;
+  --color-f2: #6366F1;
+  --color-f3: #8B5CF6;
+  --color-f4: #F59E0B;
+  --color-f5: #10B981;
+}
+
+body {
+  font-family: "Noto Sans KR", sans-serif;
+  background-color: #F8FAFC;
+  color: #1E293B;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 스크롤바 */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #F1F5F9; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
