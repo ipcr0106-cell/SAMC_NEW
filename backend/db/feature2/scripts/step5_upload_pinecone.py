@@ -20,9 +20,9 @@ from pinecone import Pinecone, ServerlessSpec
 
 load_dotenv("backend/.env")
 
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-INDEX_NAME = os.getenv("PINECONE_INDEX", "samc-law-index")
+openai_client = OpenAI(api_key=os.getenv("F2_OPENAI_API_KEY"))
+pc = Pinecone(api_key=os.getenv("F2_PINECONE_API_KEY"))
+INDEX_NAME = os.getenv("F2_PINECONE_INDEX", "samc-a")
 CHUNK_DIR = Path("preprocessing/chunks")
 
 DIMENSION = 1024  # Anthropic 임베딩 차원

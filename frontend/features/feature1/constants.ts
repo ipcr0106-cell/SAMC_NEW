@@ -5,13 +5,13 @@
 // API 경로 (feature4 패턴 준수)
 export const API_PATHS = {
   getResult: (caseId: string) =>
-    `/api/v1/cases/${caseId}/pipeline/feature/1`,
+    `/cases/${caseId}/pipeline/feature/1`,
   runResult: (caseId: string) =>
-    `/api/v1/cases/${caseId}/pipeline/feature/1/run`,
+    `/cases/${caseId}/pipeline/feature/1/run`,
   updateResult: (caseId: string) =>
-    `/api/v1/cases/${caseId}/pipeline/feature/1`,
+    `/cases/${caseId}/pipeline/feature/1`,
   confirm: (caseId: string) =>
-    `/api/v1/cases/${caseId}/pipeline/feature/1/confirm`,
+    `/cases/${caseId}/pipeline/feature/1/confirm`,
 } as const;
 
 // 판정 표시 라벨

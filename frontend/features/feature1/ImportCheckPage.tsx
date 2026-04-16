@@ -10,7 +10,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState as useLocalState } from "react";
 import { useImportCheck } from "./hooks/useImportCheck";
 import ForbiddenAlert from "./components/ForbiddenAlert";
 import AggregationSummary from "./components/AggregationSummary";
@@ -67,18 +67,13 @@ export default function ImportCheckPage({ caseId }: Props) {
     );
   }
 
-  // ─ 에러 ────────────────────────────────────────
+  // ─ 에러 / 미실행 → 실행 버튼 표시 ──────────────
   if (state.fetchStatus === "error" || !source) {
     return (
-      <main className="mx-auto max-w-5xl space-y-4 p-6">
-        <header className="border-b border-gray-200 pb-3">
-          <h1 className="text-xl font-semibold">기능1 — 수입 가능 여부 판정</h1>
-          <div className="text-xs text-gray-500">case: {caseId}</div>
-        </header>
-        <section className="rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-800">
-          {state.errorMessage ?? "결과를 표시할 수 없습니다."}
-        </section>
-      </main>
+      <RunPrompt
+        caseId={caseId}
+        errorMessage={state.errorMessage}
+      />
     );
   }
 
@@ -152,6 +147,49 @@ export default function ImportCheckPage({ caseId }: Props) {
         onSave={saveEdit}
         onConfirm={confirm}
       />
+    </main>
+  );
+}
+
+
+// ── 미실행 상태에서 실행 버튼을 보여주는 컴포넌트 ──
+
+function RunPrompt({ caseId, errorMessage }: { caseId: string; errorMessage: string | null }) {
+  const [running, setRunning] = useLocalState(false);
+  const [runError, setRunError] = useLocalState<string | null>(null);
+
+  const handleRun = async () => {
+    setRunning(true);
+    setRunError(null);
+    try {
+      const { runImportCheck } = await import("./api/importCheck");
+      await runImportCheck(caseId, { ingredients: [] });
+      window.location.reload();
+    } catch (e: any) {
+      setRunError(
+        e?.response?.data?.detail?.message ||
+        "실행 실패. 먼저 서류 업로드 및 파싱을 실행하세요."
+      );
+      setRunning(false);
+    }
+  };
+
+  return (
+    <main className="mx-auto max-w-5xl space-y-4 p-6">
+      <header className="border-b border-gray-200 pb-3">
+        <h1 className="text-xl font-semibold">기능1 — 수입 가능 여부 판정</h1>
+        <div className="text-xs text-gray-500">case: {caseId}</div>
+      </header>
+      <section className="rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-800">
+        {runError || errorMessage || "기능1이 아직 실행되지 않았습니다."}
+      </section>
+      <button
+        onClick={handleRun}
+        disabled={running}
+        className="flex items-center gap-2 bg-blue-600 text-white font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all"
+      >
+        {running ? "분석 중..." : "AI 수입판정 실행"}
+      </button>
     </main>
   );
 }

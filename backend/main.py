@@ -24,6 +24,7 @@ from routers.feature1 import router as feature1_router
 from routers.db_manager import router as db_manager_router
 from routers.feature2 import router as feature2_router
 from routers.feature3 import router as feature3_router
+from routers.feature5 import router as feature5_router
 
 
 # ── DB 커넥션 풀 lifespan 훅 ──────────────────────────────
@@ -31,6 +32,7 @@ from routers.feature3 import router as feature3_router
 async def lifespan(app: FastAPI):
     """앱 시작 시 DB pool 초기화, 종료 시 정리."""
     from db.connection import init_pool, close_pool
+    load_dotenv(Path(__file__).parent / ".env", override=True)
 
     dsn = os.environ.get("F1_DATABASE_URL")
     if dsn:
@@ -40,7 +42,7 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
             print(f"[lifespan] DB pool init failed: {exc}")
     else:
-        print("[lifespan] F1_DATABASE_URL missing — F1 DB 기능 비활성화")
+        print("[lifespan] F1_DATABASE_URL missing - F1 DB disabled")
 
     yield
 
@@ -64,7 +66,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:3001",
         "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -81,6 +85,7 @@ app.include_router(feature1_router)         # F1: 수입 가능 판정
 app.include_router(db_manager_router)       # F1: DB 관리 CRUD
 app.include_router(feature2_router)         # F2: 식품유형 분류
 app.include_router(feature3_router)         # F3: 수입 필요서류 안내
+app.include_router(feature5_router, prefix="/api/v1")  # F5: 한글표시사항 시안
 
 
 @app.get("/health", tags=["system"])

@@ -18,19 +18,19 @@ export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 // API 경로
 export const API_PATHS = {
   analyze: (caseId: string) =>
-    `/api/v1/cases/${caseId}/pipeline/feature/4/analyze`,
+    `/cases/${caseId}/pipeline/feature/4/analyze`,
   validate: (caseId: string) =>
-    `/api/v1/cases/${caseId}/pipeline/feature/4/validate`,
+    `/cases/${caseId}/pipeline/feature/4/validate`,
   uploadLabel: (caseId: string) =>
-    `/api/v1/cases/${caseId}/pipeline/feature/4/upload`,
+    `/cases/${caseId}/pipeline/feature/4/upload`,
   getResult: (caseId: string) =>
-    `/api/v1/cases/${caseId}/pipeline/feature/4`,
+    `/cases/${caseId}/pipeline/feature/4`,
   updateResult: (caseId: string) =>
-    `/api/v1/cases/${caseId}/pipeline/feature/4`,
+    `/cases/${caseId}/pipeline/feature/4`,
   confirm: (caseId: string) =>
-    `/api/v1/cases/${caseId}/pipeline/feature/4/confirm`,
+    `/cases/${caseId}/pipeline/feature/4/confirm`,
   report: (caseId: string) =>
-    `/api/v1/cases/${caseId}/pipeline/feature/4/report`,
+    `/cases/${caseId}/pipeline/feature/4/report`,
 } as const;
 
 // 전반 판정 라벨

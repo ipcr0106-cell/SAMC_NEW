@@ -94,12 +94,12 @@ LAW_FEATURE_MAP = {
 
     # ── F1 + F4 공통 ──
     "식품등의 한시적 기준 및 규격 인정 기준": {
-        "features": ["F1", "F4"],
+        "features": ["F1", "F4", "F5"],
         "tier": "고시",
         "description": "한시적 기준 및 규격 인정 기준",
     },
 
-    # ── F4 전용 ──
+    # ── F4 + F5 ──
     "식품 등의 표시·광고에 관한 법률": {
         "features": ["F4"],
         "tier": "법률",
@@ -116,17 +116,17 @@ LAW_FEATURE_MAP = {
         "description": "표시·광고법 시행규칙",
     },
     "식품등의 표시기준": {
-        "features": ["F4"],
+        "features": ["F4", "F5"],
         "tier": "고시",
         "description": "식품등의 표시기준 고시",
     },
     "식품등의 부당한 표시 또는 광고의 내용 기준": {
-        "features": ["F4"],
+        "features": ["F4", "F5"],
         "tier": "고시",
         "description": "부당한 표시·광고 내용 기준",
     },
     "부당한 표시 또는 광고로 보지 아니하는 식품등의 기능성 표시 또는 광고에 관한 규정": {
-        "features": ["F4"],
+        "features": ["F4", "F5"],
         "tier": "고시",
         "description": "기능성 표시·광고 허용 규정",
     },
